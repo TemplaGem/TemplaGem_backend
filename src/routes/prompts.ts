@@ -15,8 +15,8 @@ const promptService = new PromptService();
 
 promptsRouter.get("/", protect, async (req, res) => {
   try {
-    const email = req.user!.email;
-    const prompts = await promptService.getPrompts(email);
+    const userId = req.user!._id!;
+    const prompts = await promptService.getPrompts(userId);
     return res.status(200).json({ prompts });
   } catch (error) {
     const message =
@@ -27,14 +27,14 @@ promptsRouter.get("/", protect, async (req, res) => {
 
 promptsRouter.post("/create", protect, async (req, res) => {
   try {
-    const email = req.user!.email;
+    const userId = req.user!._id!;
     const validation = createPromptSchema.safeParse(req.body);
     if (!validation.success) {
       return res.status(400).json({ error: validation.error.message });
     }
 
     const { title, body, tags, icon } = validation.data;
-    await promptService.createPrompt({ email, title, body, tags, icon });
+    await promptService.createPrompt({ userId, title, body, tags, icon });
     return res.status(201).json({ message: "Prompt created successfully." });
   } catch (error) {
     const message =
@@ -45,14 +45,14 @@ promptsRouter.post("/create", protect, async (req, res) => {
 
 promptsRouter.patch("/change/title", protect, async (req, res) => {
   try {
-    const email = req.user!.email;
+    const userId = req.user!._id!;
     const validation = updatePromptTitleSchema.safeParse(req.body);
     if (!validation.success) {
       return res.status(400).json({ error: validation.error.message });
     }
 
     const { promptId, title } = validation.data;
-    await promptService.updatePromptTitle({ email, promptId, title });
+    await promptService.updatePromptTitle({ userId, promptId, title });
     return res
       .status(200)
       .json({ message: "Prompt title updated successfully." });
@@ -66,14 +66,14 @@ promptsRouter.patch("/change/title", protect, async (req, res) => {
 
 promptsRouter.delete("/delete", protect, async (req, res) => {
   try {
-    const email = req.user!.email;
+    const userId = req.user!._id!;
     const validation = deletePromptSchema.safeParse(req.body);
     if (!validation.success) {
       return res.status(400).json({ error: validation.error.message });
     }
 
     const { promptId } = validation.data;
-    await promptService.deletePrompt({ email, promptId });
+    await promptService.deletePrompt({ userId, promptId });
     return res.status(200).json({ message: "Prompt deleted successfully." });
   } catch (error) {
     const message =
@@ -85,8 +85,8 @@ promptsRouter.delete("/delete", protect, async (req, res) => {
 
 promptsRouter.delete("/delete/all", protect, async (req, res) => {
   try {
-    const email = req.user!.email;
-    await promptService.deleteAllPrompts(email);
+    const userId = req.user!._id!;
+    await promptService.deleteAllPrompts(userId);
     return res
       .status(200)
       .json({ message: "All prompts deleted successfully." });
@@ -100,14 +100,14 @@ promptsRouter.delete("/delete/all", protect, async (req, res) => {
 
 promptsRouter.patch("/change/body", protect, async (req, res) => {
   try {
-    const email = req.user!.email;
+    const userId = req.user!._id!;
     const validation = updatePromptBodySchema.safeParse(req.body);
     if (!validation.success) {
       return res.status(400).json({ error: validation.error.message });
     }
 
     const { promptId, body } = validation.data;
-    await promptService.updatePromptBody({ email, promptId, body });
+    await promptService.updatePromptBody({ userId, promptId, body });
     return res
       .status(200)
       .json({ message: "Prompt body updated successfully." });
@@ -121,14 +121,14 @@ promptsRouter.patch("/change/body", protect, async (req, res) => {
 
 promptsRouter.patch("/change/tags", protect, async (req, res) => {
   try {
-    const email = req.user!.email;
+    const userId = req.user!._id!;
     const validation = updatePromptTagsSchema.safeParse(req.body);
     if (!validation.success) {
       return res.status(400).json({ error: validation.error.message });
     }
 
     const { promptId, tags } = validation.data;
-    await promptService.updatePromptTags({ email, promptId, tags });
+    await promptService.updatePromptTags({ userId, promptId, tags });
     return res
       .status(200)
       .json({ message: "Prompt tags updated successfully." });
@@ -142,14 +142,14 @@ promptsRouter.patch("/change/tags", protect, async (req, res) => {
 
 promptsRouter.patch("/change/icon", protect, async (req, res) => {
   try {
-    const email = req.user!.email;
+    const userId = req.user!._id!;
     const validation = updatePromptIconSchema.safeParse(req.body);
     if (!validation.success) {
       return res.status(400).json({ error: validation.error.message });
     }
 
     const { promptId, icon } = validation.data;
-    await promptService.updatePromptIcon({ email, promptId, icon });
+    await promptService.updatePromptIcon({ userId, promptId, icon });
     return res
       .status(200)
       .json({ message: "Prompt icon updated successfully." });

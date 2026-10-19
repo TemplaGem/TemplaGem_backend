@@ -1,7 +1,7 @@
 import "dotenv/config";
 import mongoose from "mongoose";
 import dbConnect from "../utils/dbConnect.ts";
-import { userModel } from "../models/user-model.ts";
+import { promptModel } from "../models/prompt-model.ts";
 import { logger } from "../utils/loggers.ts";
 
 async function runMigration(): Promise<void> {
@@ -10,16 +10,13 @@ async function runMigration(): Promise<void> {
     logger.info("Starting migration: add default icon to existing prompts...");
 
     // Update all existing prompts where 'icon' is not set or null
-    const result = await userModel.updateMany(
-      { "prompts.icon": { $exists: false } },
-      { $set: { "prompts.$[elem].icon": "" } },
-      {
-        arrayFilters: [{ "elem.icon": { $exists: false } }],
-      },
+    const result = await promptModel.updateMany(
+      { icon: { $exists: false } },
+      { $set: { icon: "" } },
     );
 
     logger.info(
-      `Migration completed successfully. Matched ${result.matchedCount} user document(s), modified ${result.modifiedCount}.`,
+      `Migration completed successfully. Matched ${result.matchedCount} prompt document(s), modified ${result.modifiedCount}.`,
     );
   } catch (error) {
     logger.error(

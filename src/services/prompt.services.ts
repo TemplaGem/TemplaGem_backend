@@ -1,141 +1,170 @@
+import type { Types } from "mongoose";
 import type {
-  CreatePromptBody,
-  UpdatePromptBody,
-  UpdatePromptTitle,
-  UpdatePromptTags,
-  UpdatePromptIcon,
-  DeletePrompt,
+  CreatePromptDto,
+  UpdatePromptBodyDto,
+  UpdatePromptTitleDto,
+  UpdatePromptTagsDto,
+  UpdatePromptIconDto,
+  UpdatePromptAccessDto,
+  DeletePromptDto,
   IPrompt,
 } from "../types/prompt.types.ts";
+import { promptModel } from "../models/prompt-model.ts";
 import { userModel } from "../models/user-model.ts";
 
 export class PromptService {
-  async getPrompts(email: string): Promise<IPrompt[]> {
-    if (!email) {
-      throw new Error("Email is required.");
+  async getPrompts(userId: Types.ObjectId | string): Promise<IPrompt[]> {
+    if (!userId) {
+      throw new Error("User ID is required.");
     }
-    const user = await userModel.findOne({ email });
-    if (!user) {
-      throw new Error("User not found.");
-    }
-    return user.prompts ?? [];
+    return promptModel.find({ createdBy: userId }).sort({ createdAt: -1 });
   }
 
-  async createPrompt(createPromptData: CreatePromptBody): Promise<void> {
-    const { email, ...promptData } = createPromptData;
-    if (!email || !promptData) {
-      throw new Error("Email and prompt data are required.");
+  async createPrompt(createPromptData: CreatePromptDto): Promise<IPrompt> {
+    const { userId, title, body, tags, icon, access } = createPromptData;
+    if (!userId || !title || !body) {
+      throw new Error("User ID, title and body are required.");
     }
-    const user = await userModel.findOne({ email });
-    if (!user || !user.prompts) {
-      throw new Error("User or prompts not found.");
-    }
-    user.prompts.push(promptData);
-    await user.save();
+
+    const prompt = await promptModel.create({
+      createdBy: userId,
+      title,
+      body,
+      tags: tags ?? [],
+      icon: icon ?? "",
+      access: access ?? "private",
+    });
+
+    await userModel.findByIdAndUpdate(userId, {
+      $push: { prompts: prompt._id },
+    });
+
+    return prompt;
   }
 
   async updatePromptTitle(
-    updatePromptTitleData: UpdatePromptTitle,
+    updatePromptTitleData: UpdatePromptTitleDto,
   ): Promise<void> {
-    const { email, promptId, title } = updatePromptTitleData;
-    if (!promptId || !title || !email) {
-      throw new Error("Prompt ID, email and title are required.");
+    const { userId, promptId, title } = updatePromptTitleData;
+    if (!userId || !promptId || !title) {
+      throw new Error("Prompt ID, user ID and title are required.");
     }
-    const user = await userModel.findOne({ email });
-    if (!user?.prompts) {
-      throw new Error("User or prompts not found.");
-    }
-    const prompt = user.prompts.find((p) => p._id?.toString() === promptId);
+
+    const prompt = await promptModel.findOneAndUpdate(
+      { _id: promptId, createdBy: userId },
+      { title },
+      { new: true },
+    );
+
     if (!prompt) {
       throw new Error("Prompt not found.");
     }
-    prompt.title = title;
-    await user.save();
   }
 
   async updatePromptBody(
-    updatePromptBodyData: UpdatePromptBody,
+    updatePromptBodyData: UpdatePromptBodyDto,
   ): Promise<void> {
-    const { email, promptId, body } = updatePromptBodyData;
-    if (!email || !promptId || !body) {
-      throw new Error("Email, prompt ID and body are required.");
+    const { userId, promptId, body } = updatePromptBodyData;
+    if (!userId || !promptId || !body) {
+      throw new Error("User ID, prompt ID and body are required.");
     }
-    const user = await userModel.findOne({ email });
-    if (!user || !user.prompts) {
-      throw new Error("User or prompts not found.");
-    }
-    const prompt = user.prompts.find((p) => p._id?.toString() === promptId);
+
+    const prompt = await promptModel.findOneAndUpdate(
+      { _id: promptId, createdBy: userId },
+      { body },
+      { new: true },
+    );
+
     if (!prompt) {
       throw new Error("Prompt not found.");
     }
-    prompt.body = body;
-    await user.save();
   }
 
   async updatePromptTags(
-    updatePromptTagsData: UpdatePromptTags,
+    updatePromptTagsData: UpdatePromptTagsDto,
   ): Promise<void> {
-    const { email, promptId, tags } = updatePromptTagsData;
-    if (!email || !promptId || !tags) {
-      throw new Error("Prompt ID, email and tags are required.");
+    const { userId, promptId, tags } = updatePromptTagsData;
+    if (!userId || !promptId || !tags) {
+      throw new Error("Prompt ID, user ID and tags are required.");
     }
-    const user = await userModel.findOne({ email });
-    if (!user || !user.prompts) {
-      throw new Error("User or prompts not found.");
-    }
-    const prompt = user.prompts.find((p) => p._id?.toString() === promptId);
+
+    const prompt = await promptModel.findOneAndUpdate(
+      { _id: promptId, createdBy: userId },
+      { tags },
+      { new: true },
+    );
+
     if (!prompt) {
       throw new Error("Prompt not found.");
     }
-    prompt.tags = tags;
-    await user.save();
   }
 
   async updatePromptIcon(
-    updatePromptIconData: UpdatePromptIcon,
+    updatePromptIconData: UpdatePromptIconDto,
   ): Promise<void> {
-    const { email, promptId, icon } = updatePromptIconData;
-    if (!email || !promptId || !icon) {
-      throw new Error("Prompt ID, email and icon are required.");
+    const { userId, promptId, icon } = updatePromptIconData;
+    if (!userId || !promptId || !icon) {
+      throw new Error("Prompt ID, user ID and icon are required.");
     }
-    const user = await userModel.findOne({ email });
-    if (!user || !user.prompts) {
-      throw new Error("User or prompts not found.");
-    }
-    const prompt = user.prompts.find((p) => p._id?.toString() === promptId);
+
+    const prompt = await promptModel.findOneAndUpdate(
+      { _id: promptId, createdBy: userId },
+      { icon },
+      { new: true },
+    );
+
     if (!prompt) {
       throw new Error("Prompt not found.");
     }
-    prompt.icon = icon;
-    await user.save();
   }
 
-  async deletePrompt(deletePromptData: DeletePrompt): Promise<void> {
-    const { email, promptId } = deletePromptData;
-    if (!email || !promptId) {
-      throw new Error("Email and prompt ID are required.");
+  async updatePromptAccess(
+    updatePromptAccessData: UpdatePromptAccessDto,
+  ): Promise<void> {
+    const { userId, promptId, access } = updatePromptAccessData;
+    if (!userId || !promptId || !access) {
+      throw new Error("Prompt ID, user ID and access are required.");
     }
-    const user = await userModel.findOne({ email });
-    if (!user || !user.prompts) {
-      throw new Error("User or prompts not found.");
-    }
-    const prompt = user.prompts.find((p) => p._id?.toString() === promptId);
+
+    const prompt = await promptModel.findOneAndUpdate(
+      { _id: promptId, createdBy: userId },
+      { access },
+      { new: true },
+    );
+
     if (!prompt) {
       throw new Error("Prompt not found.");
     }
-    user.prompts = user.prompts.filter((p) => p._id?.toString() !== promptId);
-    await user.save();
   }
 
-  async deleteAllPrompts(email: string): Promise<void> {
-    if (!email) {
-      throw new Error("Email is required.");
+  async deletePrompt(deletePromptData: DeletePromptDto): Promise<void> {
+    const { userId, promptId } = deletePromptData;
+    if (!userId || !promptId) {
+      throw new Error("User ID and prompt ID are required.");
     }
-    const user = await userModel.findOne({ email });
-    if (!user) {
-      throw new Error("User not found.");
+
+    const prompt = await promptModel.findOneAndDelete({
+      _id: promptId,
+      createdBy: userId,
+    });
+
+    if (!prompt) {
+      throw new Error("Prompt not found.");
     }
-    user.prompts = [];
-    await user.save();
+
+    await userModel.findByIdAndUpdate(userId, {
+      $pull: { prompts: promptId },
+    });
+  }
+
+  async deleteAllPrompts(userId: Types.ObjectId | string): Promise<void> {
+    if (!userId) {
+      throw new Error("User ID is required.");
+    }
+
+    await promptModel.deleteMany({ createdBy: userId });
+    await userModel.findByIdAndUpdate(userId, {
+      $set: { prompts: [] },
+    });
   }
 }

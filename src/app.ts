@@ -34,6 +34,14 @@ export const createApp = (): express.Express => {
     }),
   );
   app.use(httpLogger);
+  app.get("/api/health", (_req, res) => {
+    res.json({
+      status: "ok",
+      service: "prompthub-api",
+      port: process.env.PORT || 4300,
+      timestamp: new Date().toISOString(),
+    });
+  });
   app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
   app.use("/api/users", usersRouter);
   app.use("/api/prompts", promptsRouter);

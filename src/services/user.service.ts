@@ -1,4 +1,5 @@
 import { userModel } from "../models/user-model.ts";
+import { promptModel } from "../models/prompt-model.ts";
 import bcrypt from "bcrypt";
 import type { IUser } from "../types/user.types.ts";
 
@@ -22,10 +23,16 @@ export class UserService {
     if (!email) {
       throw new Error("Email is required to delete a user.");
     }
-    const result = await userModel.deleteOne({ email });
-    if (result.deletedCount === 0) {
+    const user = await userModel.findOne({ email });
+    if (!user) {
       throw new Error("User not found.");
     }
+
+    // Каскадное удаление всех промптов пользователя
+    await promptModel.deleteMany({ createdBy: user._id });
+
+    // Удаление пользователя
+    await userModel.deleteOne({ _id: user._id });
   }
 
   async updatePassword(email: string, newPassword: string): Promise<void> {

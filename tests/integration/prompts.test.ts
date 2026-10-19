@@ -1,6 +1,7 @@
 import request from "supertest";
 import { createApp } from "../../src/app.ts";
 import { userModel } from "../../src/models/user-model.ts";
+import { promptModel } from "../../src/models/prompt-model.ts";
 import { connectTestDb, clearTestDb, closeTestDb } from "../helpers/db.ts";
 
 const app = createApp();
@@ -58,26 +59,16 @@ describe("Prompts Routes (/api/prompts)", () => {
       expect(res.body.prompts[0].tags).toEqual(["tech", "coding"]);
     });
 
-    it("should return prompts with icon for authenticated user", async () => {
+    it("should return empty list when user has no prompts", async () => {
       const token = await getAuthToken();
-
-      await request(app)
-        .post("/api/prompts/create")
-        .set("Authorization", `Bearer ${token}`)
-        .send({
-          title: "Prompt with Icon",
-          body: "Act as a software engineer...",
-          tags: ["tech"],
-          icon: "code-icon",
-        });
 
       const res = await request(app)
         .get("/api/prompts")
         .set("Authorization", `Bearer ${token}`);
 
       expect(res.status).toBe(200);
-      expect(res.body.prompts).toHaveLength(1);
-      expect(res.body.prompts[0]).toHaveProperty("icon", "code-icon");
+      expect(res.body).toHaveProperty("prompts");
+      expect(res.body.prompts).toHaveLength(0);
     });
 
     it("should return 401 when token is missing", async () => {
@@ -105,9 +96,14 @@ describe("Prompts Routes (/api/prompts)", () => {
         "Prompt created successfully.",
       );
 
-      const updatedUser = await userModel.findOne({ email: user.email });
-      expect(updatedUser?.prompts).toHaveLength(1);
-      expect(updatedUser?.prompts?.[0]?.title).toBe("My Prompt");
+      const dbUser = await userModel.findOne({ email: user.email });
+      expect(dbUser?.prompts).toHaveLength(1);
+
+      const dbPrompt = await promptModel.findOne({ createdBy: dbUser?._id });
+      expect(dbPrompt).not.toBeNull();
+      expect(dbPrompt?.title).toBe("My Prompt");
+      expect(dbPrompt?.body).toBe("Act as a software engineer...");
+      expect(dbPrompt?.tags).toEqual(["tech", "coding"]);
     });
 
     it("should create a prompt with icon for authenticated user", async () => {
@@ -129,10 +125,12 @@ describe("Prompts Routes (/api/prompts)", () => {
         "Prompt created successfully.",
       );
 
-      const updatedUser = await userModel.findOne({ email: user.email });
-      expect(updatedUser?.prompts).toHaveLength(1);
-      expect(updatedUser?.prompts?.[0]?.title).toBe("Prompt with Icon");
-      expect(updatedUser?.prompts?.[0]?.icon).toBe("sparkles-icon-id");
+      const dbUser = await userModel.findOne({ email: user.email });
+      expect(dbUser?.prompts).toHaveLength(1);
+
+      const dbPrompt = await promptModel.findOne({ createdBy: dbUser?._id });
+      expect(dbPrompt?.title).toBe("Prompt with Icon");
+      expect(dbPrompt?.icon).toBe("sparkles-icon-id");
     });
 
     it("should return 400 when icon is not a string", async () => {
@@ -180,7 +178,7 @@ describe("Prompts Routes (/api/prompts)", () => {
         });
 
       const dbUser = await userModel.findOne({ email: user.email });
-      promptId = dbUser!.prompts![0]!._id!.toString();
+      promptId = dbUser!.prompts![0]!.toString();
     });
 
     it("should update prompt title", async () => {
@@ -198,8 +196,8 @@ describe("Prompts Routes (/api/prompts)", () => {
         "Prompt title updated successfully.",
       );
 
-      const dbUser = await userModel.findOne({ email: user.email });
-      expect(dbUser?.prompts?.[0]?.title).toBe("Updated Title");
+      const dbPrompt = await promptModel.findById(promptId);
+      expect(dbPrompt?.title).toBe("Updated Title");
     });
 
     it("should update prompt body", async () => {
@@ -217,8 +215,8 @@ describe("Prompts Routes (/api/prompts)", () => {
         "Prompt body updated successfully.",
       );
 
-      const dbUser = await userModel.findOne({ email: user.email });
-      expect(dbUser?.prompts?.[0]?.body).toBe("Updated Body Content");
+      const dbPrompt = await promptModel.findById(promptId);
+      expect(dbPrompt?.body).toBe("Updated Body Content");
     });
 
     it("should update prompt tags", async () => {
@@ -236,8 +234,8 @@ describe("Prompts Routes (/api/prompts)", () => {
         "Prompt tags updated successfully.",
       );
 
-      const dbUser = await userModel.findOne({ email: user.email });
-      expect(dbUser?.prompts?.[0]?.tags).toEqual(["new-tag", "updated"]);
+      const dbPrompt = await promptModel.findById(promptId);
+      expect(dbPrompt?.tags).toEqual(["new-tag", "updated"]);
     });
 
     it("should update prompt icon", async () => {
@@ -255,8 +253,8 @@ describe("Prompts Routes (/api/prompts)", () => {
         "Prompt icon updated successfully.",
       );
 
-      const dbUser = await userModel.findOne({ email: user.email });
-      expect(dbUser?.prompts?.[0]?.icon).toBe("new-sparkles-icon");
+      const dbPrompt = await promptModel.findById(promptId);
+      expect(dbPrompt?.icon).toBe("new-sparkles-icon");
     });
 
     it("should return 400 when updating icon with empty value", async () => {
@@ -301,6 +299,9 @@ describe("Prompts Routes (/api/prompts)", () => {
 
       const dbUser = await userModel.findOne({ email: user.email });
       expect(dbUser?.prompts).toHaveLength(0);
+
+      const dbPrompt = await promptModel.findById(promptId);
+      expect(dbPrompt).toBeNull();
     });
 
     it("should delete all prompts of the user via DELETE /api/prompts/delete/all", async () => {
@@ -329,6 +330,11 @@ describe("Prompts Routes (/api/prompts)", () => {
 
       dbUser = await userModel.findOne({ email: user.email });
       expect(dbUser?.prompts).toHaveLength(0);
+
+      const count = await promptModel.countDocuments({
+        createdBy: dbUser?._id,
+      });
+      expect(count).toBe(0);
     });
 
     it("should return 401 when unauthorized on delete all prompts", async () => {

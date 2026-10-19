@@ -1,0 +1,55 @@
+version: "3.8"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+    container_name: prompthub_api_local
+    restart: unless-stopped
+    ports:
+      - "${PORT:-4300}:${PORT:-4300}"
+    env_file:
+      - .env
+    environment:
+      PORT: ${PORT:-4300}
+      MONGO_URL: mongodb://promptHub:promptHub@mongo:27017/promptHub?authSource=admin
+    volumes:
+      - ./src:/app/src:ro
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - prompthub-local-network
+
+  mongo:
+    image: mongo:7.0
+    container_name: prompthub_mongo_local
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-local-data:/data/db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=promptHub
+      - MONGO_INITDB_ROOT_PASSWORD=promptHub
+      - MONGO_INITDB_DATABASE=promptHub
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'echo ''db.runCommand("ping").ok'' | mongosh localhost:27017/test --quiet',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - prompthub-local-network
+
+networks:
+  prompthub-local-network:
+    driver: bridge
+
+volumes:
+  mongo-local-data:

@@ -7,14 +7,11 @@ const userSchema = new Schema<IUser>({
   registeredAt: { type: Date, required: true, default: Date.now },
   prompts: [
     {
-      title: { type: String, required: true },
-      body: { type: String, required: true },
-      icon: { type: String, required: false },
-      createdAt: { type: Date, required: true, default: Date.now },
-      tags: { type: [{ type: String }], required: false },
-      updatedAt: { type: Date, required: true, default: Date.now },
+      type: Schema.Types.ObjectId,
+      ref: "PromptModel",
     },
   ],
+  rating: { type: Number, required: true, default: 0 },
 });
 
 export const userModel = model<IUser>("UserModel", userSchema);
