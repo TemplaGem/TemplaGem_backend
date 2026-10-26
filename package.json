@@ -1,7 +1,7 @@
 {
-  "name": "prompthub_backend",
+  "name": "templagem_backend",
   "version": "1.0.0",
-  "description": "backend for PromptHub",
+  "description": "backend for TemplaGem",
   "license": "ISC",
   "author": "skyzary",
   "type": "module",

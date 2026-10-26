@@ -1,6 +1,6 @@
-# PromptHub Backend (Français)
+# TemplaGem Backend (Français)
 
-Service backend pour la plateforme **PromptHub**, fournissant une API REST pour la gestion des utilisateurs, l'authentification et la manipulation des prompts.
+Service backend pour la plateforme **TemplaGem**, fournissant une API REST pour la gestion des utilisateurs, l'authentification et la manipulation des prompts.
 
 ---
 
@@ -48,7 +48,7 @@ Créez un fichier `.env` à la racine du projet en vous basant sur l'exemple sui
 
 ```env
 PORT=4300
-MONGO_URL=mongodb://promptHub:promptHub@127.0.0.1:27017/promptHub?authSource=admin
+MONGO_URL=mongodb://templaGem:templaGem@127.0.0.1:27017/templaGem?authSource=admin
 ACCESS_SECRET=votre_cle_secrete_jwt_access
 REFRESH_SECRET=votre_cle_secrete_jwt_refresh
 ACCESS_EXPIRES=15m
@@ -74,7 +74,7 @@ REFRESH_EXPIRES=7d
 
    ```bash
    git clone <url-du-depot>
-   cd PromptHub_backend
+   cd TemplaGem_backend
    ```
 
 2. **Installer les dépendances :**
@@ -138,7 +138,7 @@ Le serveur sera accessible sur : `http://localhost:4300`
 ## 📁 Structure du projet
 
 ```text
-PromptHub_backend/
+TemplaGem_backend/
 ├── docs/                 # Documentation multilingue du projet
 ├── src/
 │   ├── index.ts          # Point d'entrée de l'application

@@ -5,13 +5,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: prompthub_api
+    container_name: templagem_api
     restart: unless-stopped
     ports:
       - "4200:4200"
     environment:
       PORT: 4200
-      MONGO_URL: mongodb://promptHub:promptHub@mongo:27017/promptHub?authSource=admin
+      MONGO_URL: mongodb://templaGem:templaGem@mongo:27017/templaGem?authSource=admin
       ACCESS_SECRET: ${ACCESS_SECRET:-default_access_secret}
       REFRESH_SECRET: ${REFRESH_SECRET:-default_refresh_secret}
       ACCESS_EXPIRES: ${ACCESS_EXPIRES:-default_access_expires}
@@ -20,7 +20,7 @@ services:
       mongo:
         condition: service_healthy
     networks:
-      - prompthub-network
+      - templagem-network
 
   mongo:
     image: mongo:latest
@@ -31,9 +31,9 @@ services:
     volumes:
       - mongo-data:/data/db
     environment:
-      - MONGO_INITDB_ROOT_USERNAME=promptHub
-      - MONGO_INITDB_ROOT_PASSWORD=promptHub
-      - MONGO_INITDB_DATABASE=promptHub
+      - MONGO_INITDB_ROOT_USERNAME=templaGem
+      - MONGO_INITDB_ROOT_PASSWORD=templaGem
+      - MONGO_INITDB_DATABASE=templaGem
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
@@ -41,10 +41,10 @@ services:
       retries: 5
       start_period: 10s
     networks:
-      - prompthub-network
+      - templagem-network
 
 networks:
-  prompthub-network:
+  templagem-network:
     driver: bridge
 
 volumes:

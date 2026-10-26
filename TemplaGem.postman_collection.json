@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "name": "PromptHub API",
-    "description": "Коллекция эндпоинтов PromptHub backend.\n\n1. Register / Login — accessToken сохранится в переменную коллекции автоматически.\n2. Для Prompts нужен Bearer token (берётся из {{accessToken}}).\n\nAuth-роуты ожидаются на `/api/auth` (подключи `authRouter` в `index.ts`, если ещё не подключён).",
+    "name": "TemplaGem API",
+    "description": "Коллекция эндпоинтов TemplaGem backend.\n\n1. Register / Login — accessToken сохранится в переменную коллекции автоматически.\n2. Для Prompts нужен Bearer token (берётся из {{accessToken}}).\n\nAuth-роуты ожидаются на `/api/auth` (подключи `authRouter` в `index.ts`, если ещё не подключён).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
