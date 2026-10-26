@@ -8,7 +8,6 @@ export interface IUser {
   registeredAt: Date;
   prompts?: Array<Types.ObjectId>;
   rating: number;
-  resetHash: string;
 }
 
 export interface CreateUserBody {
