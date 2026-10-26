@@ -1,6 +1,6 @@
-# PromptHub Backend (Українська)
+# TemplaGem Backend (Українська)
 
-Бекенд-сервіс для платформи **PromptHub**, що надає REST API для керування користувачами, автентифікації та роботи з промптами.
+Бекенд-сервіс для платформи **TemplaGem**, що надає REST API для керування користувачами, автентифікації та роботи з промптами.
 
 ---
 
@@ -48,7 +48,7 @@
 
 ```env
 PORT=4300
-MONGO_URL=mongodb://promptHub:promptHub@127.0.0.1:27017/promptHub?authSource=admin
+MONGO_URL=mongodb://templaGem:templaGem@127.0.0.1:27017/templaGem?authSource=admin
 ACCESS_SECRET=your_jwt_access_secret_key
 REFRESH_SECRET=your_jwt_refresh_secret_key
 ACCESS_EXPIRES=15m
@@ -74,7 +74,7 @@ REFRESH_EXPIRES=7d
 
    ```bash
    git clone <url-репозиторію>
-   cd PromptHub_backend
+   cd TemplaGem_backend
    ```
 
 2. **Встановіть залежності:**
@@ -138,7 +138,7 @@ docker compose up --build -d
 ## 📁 Структура проєкту
 
 ```text
-PromptHub_backend/
+TemplaGem_backend/
 ├── docs/                 # Документація проєкту різними мовами
 ├── src/
 │   ├── index.ts          # Точка входу в застосунок

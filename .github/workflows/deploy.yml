@@ -94,7 +94,7 @@ jobs:
           context: ${{ steps.set-dir.outputs.BACKEND_DIR }}
           file: ${{ steps.set-dir.outputs.BACKEND_DIR }}/Dockerfile
           push: ${{ github.event_name == 'push' }}
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/prompthub_backend:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/templagem_backend:latest
 
   deploy-ssh:
     name: Deploy via SSH (CD)
@@ -112,8 +112,8 @@ jobs:
           script_stop: true
           script: |
             set -e
-            echo "==> Переход в директорию PromptHub..."
-            cd /home/server/projects/prompthub
+            echo "==> Переход в директорию TemplaGem..."
+            cd /home/server/projects/templagem
 
             echo "==> Скачивание свежего Docker-образа бэкенда..."
             docker compose pull backend
@@ -122,7 +122,7 @@ jobs:
             docker compose up -d --no-deps backend
 
             echo "==> Проверка статуса контейнеров..."
-            docker ps --filter "name=prompthub"
+            docker ps --filter "name=templagem"
 
             echo "==> Валидация эндпоинта здоровья..."
             sleep 3

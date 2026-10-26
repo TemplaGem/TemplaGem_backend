@@ -37,7 +37,7 @@ export const createApp = (): express.Express => {
   app.get("/api/health", (_req, res) => {
     res.json({
       status: "ok",
-      service: "prompthub-api",
+      service: "templagem-api",
       port: process.env.PORT || 4300,
       timestamp: new Date().toISOString(),
     });

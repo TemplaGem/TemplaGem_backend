@@ -94,7 +94,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/prompthub_backend
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/templagem_backend
           tags: |
             type=raw,value=latest
             type=raw,value=${{ steps.versioning.outputs.version }}
