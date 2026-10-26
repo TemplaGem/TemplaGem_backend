@@ -136,16 +136,20 @@ describe("Prompts Sync Route (/api/prompts/sync)", () => {
     const token = await getAuthToken();
 
     // Create a prompt
-    await request(app)
+    const createRes = await request(app)
       .post("/api/prompts/create")
       .set("Authorization", `Bearer ${token}`)
       .send({
         title: "To Be Deleted",
         body: "Content",
       });
+    expect(createRes.status).toBe(201);
 
-    const dbUser = await userModel.findOne({ email: user.email });
-    const promptId = dbUser!.prompts![0]!.toString();
+    const getInitial = await request(app)
+      .get("/api/prompts")
+      .set("Authorization", `Bearer ${token}`);
+    expect(getInitial.body.prompts).toHaveLength(1);
+    const promptId = getInitial.body.prompts[0]._id;
 
     const syncRes = await request(app)
       .post("/api/prompts/sync")
@@ -172,13 +176,14 @@ describe("Prompts Sync Route (/api/prompts/sync)", () => {
     const pastTimestamp = new Date(Date.now() - 100000).toISOString();
 
     // Create a prompt on the server
-    await request(app)
+    const createRes = await request(app)
       .post("/api/prompts/create")
       .set("Authorization", `Bearer ${token}`)
       .send({
         title: "Server Modified Prompt",
         body: "Server Content",
       });
+    expect(createRes.status).toBe(201);
 
     const syncRes = await request(app)
       .post("/api/prompts/sync")
