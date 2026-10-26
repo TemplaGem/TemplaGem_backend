@@ -31,7 +31,7 @@ const iconSchema = z.string().trim().min(1, "Icon cannot be empty");
 export const createPromptSchema = z.object({
   title: titleSchema,
   body: bodySchema,
-  tags: tagsSchema,
+  tags: tagsSchema.optional().default([]),
   icon: iconSchema.optional(),
 });
 

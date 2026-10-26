@@ -142,6 +142,7 @@ describe("Prompts Sync Route (/api/prompts/sync)", () => {
       .send({
         title: "To Be Deleted",
         body: "Content",
+        tags: ["temp"],
       });
     expect(createRes.status).toBe(201);
 
@@ -182,6 +183,7 @@ describe("Prompts Sync Route (/api/prompts/sync)", () => {
       .send({
         title: "Server Modified Prompt",
         body: "Server Content",
+        tags: ["sync-test"],
       });
     expect(createRes.status).toBe(201);
 
