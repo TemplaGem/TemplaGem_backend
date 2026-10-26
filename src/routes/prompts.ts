@@ -8,10 +8,37 @@ import {
   updatePromptTagsSchema,
   updatePromptIconSchema,
   deletePromptSchema,
+  syncPromptsSchema,
 } from "../validation/prompt-validation.ts";
 
 const promptsRouter: Router = Router();
 const promptService = new PromptService();
+
+promptsRouter.post("/sync", protect, async (req, res) => {
+  try {
+    if (
+      process.env.FEATURE_CLOUD_SYNC === "false" &&
+      process.env.NODE_ENV !== "test"
+    ) {
+      return res.status(403).json({
+        error: "Cloud sync is temporarily disabled under a feature flag.",
+      });
+    }
+
+    const userId = req.user!._id!;
+    const validation = syncPromptsSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({ error: validation.error.message });
+    }
+
+    const result = await promptService.syncPrompts(userId, validation.data);
+    return res.status(200).json(result);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to sync prompts";
+    return res.status(500).json({ error: message });
+  }
+});
 
 promptsRouter.get("/", protect, async (req, res) => {
   try {

@@ -58,3 +58,22 @@ export const updatePromptIconSchema = z.object({
 export const deletePromptSchema = z.object({
   promptId: promptIdSchema,
 });
+
+export const syncPromptItemSchema = z.object({
+  clientTempId: z.string().trim().min(1).optional(),
+  promptId: promptIdSchema.optional(),
+  title: titleSchema,
+  body: bodySchema,
+  tags: tagsSchema.optional(),
+  icon: iconSchema.optional(),
+  access: z.enum(["public", "private", "link"]).optional(),
+  createdAt: z.string().datetime().optional(),
+  updatedAt: z.string().datetime().optional(),
+});
+
+export const syncPromptsSchema = z.object({
+  lastSyncTimestamp: z.string().datetime().nullable().optional(),
+  created: z.array(syncPromptItemSchema).optional().default([]),
+  updated: z.array(syncPromptItemSchema).optional().default([]),
+  deletedIds: z.array(promptIdSchema).optional().default([]),
+});

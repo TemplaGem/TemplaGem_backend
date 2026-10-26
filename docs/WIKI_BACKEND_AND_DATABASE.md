@@ -1,4 +1,4 @@
-# 📚 Документация: База данных и Архитектура Бэкенда (PromptHub)
+# 📚 Документация: База данных и Архитектура Бэкенда (TemplaGem)
 
 ## 📌 Содержание
 
@@ -9,14 +9,15 @@
 4. [Связи и целостность данных](#4-связи-и-целостность-данных)
 5. [Миграции базы данных](#5-миграции-базы-данных)
 6. [Спецификация REST API](#6-спецификация-rest-api)
-7. [Аутентификация и безопасность](#7-аутентификация-и-безопасность)
-8. [Конфигурация и окружение](#8-конфигурация-и-окружение)
+7. [Принцип работы двусторонней синхронизации (Offline-First Sync)](#7-принцип-работы-двусторонней-синхронизации-offline-first-sync)
+8. [Аутентификация и безопасность](#8-аутентификация-и-безопасность)
+9. [Конфигурация и окружение](#9-конфигурация-и-окружение)
 
 ---
 
 ## 1. Общая архитектура бэкенда
 
-Бэкенд **PromptHub** построен на базе **Node.js** (ES Modules) и **Express 5** на языке **TypeScript**. Архитектура организована по принципу разделения ответственности (Layered Architecture):
+Бэкенд **TemplaGem** построен на базе **Node.js** (ES Modules) и **Express 5** на языке **TypeScript**. Архитектура организована по принципу разделения ответственности (Layered Architecture):
 
 ```
 src/
@@ -25,19 +26,19 @@ src/
 ├── routes/                # HTTP-роутеры и обработчики эндпоинтов
 │   ├── auth.ts            # Роуты регистрации, логина, рефреша, логаута
 │   ├── users.ts           # Роуты управления профилями пользователей
-│   └── prompts.ts         # Роуты CRUD операций над промптами
+│   └── prompts.ts         # Роуты CRUD операций и синхронизации промптов (/sync)
 ├── services/              # Слой бизнес-логики
 │   ├── user.service.ts    # Сервис работы с пользователями (создание, пароли, удаление)
-│   └── prompt.services.ts # Сервис промптов (создание, обновление, удаление)
+│   └── prompt.services.ts # Сервис промптов (CRUD, syncPrompts, soft delete)
 ├── models/                # Mongoose схемы и модели данных
 │   ├── user-model.ts      # Модель UserModel
-│   └── prompt-model.ts    # Модель PromptModel
+│   └── prompt-model.ts    # Модель PromptModel (поля clientTempId, deletedAt)
 ├── types/                 # TypeScript интерфейсы и DTO
 │   ├── user.types.ts      # Типы пользователя, JWT payload
-│   └── prompt.types.ts    # Типы промптов и входные DTO сервисов
+│   └── prompt.types.ts    # Типы промптов, DTO синхронизации (SyncPromptsPayloadDto и др.)
 ├── validation/            # Схемы валидации запросов через Zod
 │   ├── user-validation.ts # Валидация логина, паролей, email
-│   └── prompt-validation.ts # Валидация заголовков, тегов, иконок, доступа
+│   └── prompt-validation.ts # Валидация промптов и схемы синхронизации syncPromptsSchema
 ├── middleware/            # Промежуточные обработчики
 │   └── protect.ts         # JWT авторизация (проверка access токена)
 ├── migrations/            # Скрипты миграций данных
@@ -234,6 +235,7 @@ erDiagram
     PromptModel {
         ObjectId _id PK
         ObjectId createdBy FK "Ссылка на автора UserModel"
+        string clientTempId "Временный ID клиента для Offline-First синхронизации"
         string title "Заголовок промпта от 1 до 100 символов"
         string body "Тело промпта от 1 до 10000 символов"
         string icon "Идентификатор или название иконки"
@@ -241,6 +243,7 @@ erDiagram
         number likes "Количество лайков"
         number downloads "Количество скачиваний"
         string access "Уровень доступа: public, private или link"
+        date deletedAt "Метка мягкого удаления (Tombstone)"
         date createdAt "Метка времени создания"
         date updatedAt "Метка времени последнего обновления"
     }
@@ -269,19 +272,26 @@ erDiagram
 - **Коллекция:** `promptmodels` (или `prompts`)
 - **TypeScript интерфейс:** `IPromptDocument`
 
-| Поле        | Тип                     | Обязательное      | Дефолтное значение | Описание                                           |
-| :---------- | :---------------------- | :---------------- | :----------------- | :------------------------------------------------- |
-| `_id`       | `Types.ObjectId`        | Да (генерируется) | Auto               | Идентификатор промпта                              |
-| `createdBy` | `Schema.Types.ObjectId` | Да                | —                  | Ref на `UserModel`, с индексом для быстрого поиска |
-| `title`     | `String`                | Да                | —                  | Название промпта                                   |
-| `body`      | `String`                | Да                | —                  | Содержимое/текст промпта                           |
-| `icon`      | `String`                | Да                | `""`               | Иконка промпта                                     |
-| `tags`      | `[String]`              | Да                | `[]`               | Список тегов (максимум 10)                         |
-| `likes`     | `Number`                | Да                | `0`                | Счётчик лайков                                     |
-| `downloads` | `Number`                | Да                | `0`                | Счётчик скачиваний/использований                   |
-| `access`    | `String` (enum)         | Да                | `"private"`        | Доступ: `"public"`, `"private"` или `"link"`       |
-| `createdAt` | `Date`                  | Авто              | `now`              | Дата создания (`timestamps: true`)                 |
-| `updatedAt` | `Date`                  | Авто              | `now`              | Дата изменения (`timestamps: true`)                |
+| Поле           | Тип                     | Обязательное      | Дефолтное значение | Описание                                                           |
+| :------------- | :---------------------- | :---------------- | :----------------- | :----------------------------------------------------------------- |
+| `_id`          | `Types.ObjectId`        | Да (генерируется) | Auto               | Идентификатор промпта                                              |
+| `createdBy`    | `Schema.Types.ObjectId` | Да                | —                  | Ref на `UserModel`, с индексом для быстрого поиска                 |
+| `clientTempId` | `String`                | Нет               | `""`               | Временный ID на стороне клиента для Offline-First синхронизации    |
+| `title`        | `String`                | Да                | —                  | Название промпта                                                   |
+| `body`         | `String`                | Да                | —                  | Содержимое/текст промпта                                           |
+| `icon`         | `String`                | Да                | `""`               | Иконка промпта                                                     |
+| `tags`         | `[String]`              | Да                | `[]`               | Список тегов (максимум 10)                                         |
+| `likes`        | `Number`                | Да                | `0`                | Счётчик лайков                                                     |
+| `downloads`    | `Number`                | Да                | `0`                | Счётчик скачиваний/использований                                   |
+| `access`       | `String` (enum)         | Да                | `"private"`        | Доступ: `"public"`, `"private"` или `"link"`                       |
+| `deletedAt`    | `Date`                  | Нет               | `null`             | Метка мягкого удаления (Tombstone) для фильтрации и синхронизации  |
+| `createdAt`    | `Date`                  | Авто              | `now`              | Дата создания (`timestamps: true`)                                 |
+| `updatedAt`    | `Date`                  | Авто              | `now`              | Дата изменения (`timestamps: true`)                                |
+
+**Индексы `promptSchema`:**
+- `createdBy` (1)
+- `deletedAt` (1)
+- Составной индекс `{ createdBy: 1, updatedAt: 1 }` (критичен для высокой скорости инкрементальной выборки в `/api/prompts/sync`)
 
 ---
 
@@ -303,15 +313,16 @@ erDiagram
      });
      ```
 - **Удаление одного промпта (`PromptService.deletePrompt`)**:
-  1. Удаляется документ из `PromptModel` по `_id` и `createdBy`.
-  2. ID промпта удаляется из массива `prompts` пользователя через `$pull`:
+  Используется стратегия **Soft Delete** (мягкое удаление), необходимая для отслеживания удалений в распределенной синхронизации (Tombstone):
+  1. Документ помечается как удаленный: `deletedAt = new Date()`.
+  2. ID промпта исключается из массива `prompts` пользователя через `$pull`:
      ```ts
      await userModel.findByIdAndUpdate(userId, {
        $pull: { prompts: promptId },
      });
      ```
 - **Удаление всех промптов (`PromptService.deleteAllPrompts`)**:
-  1. Удаляются все документы в `PromptModel` с `createdBy: userId`.
+  1. Всем активным промптам пользователя проставляется метка удаления: `$set: { deletedAt: new Date() }`.
   2. Массив `prompts` у пользователя очищается: `$set: { prompts: [] }`.
 - **Удаление пользователя (`UserService.deleteUser`)**:
   1. Каскадно удаляются все промпты пользователя:
@@ -356,9 +367,10 @@ erDiagram
 
 ### 6.3. Промпты (`/api/prompts`)
 
-| Метод    | Путь                         | Auth   | Описание                                      | Тело запроса                            | Ответ                         |
-| :------- | :--------------------------- | :----- | :-------------------------------------------- | :-------------------------------------- | :---------------------------- |
-| `GET`    | `/api/prompts`               | Bearer | Список промптов текущего пользователя         | —                                       | `200 OK` `{ prompts: [...] }` |
+| Метод    | Путь                         | Auth   | Описание                                      | Тело запроса                            | Ответ                                            |
+| :------- | :--------------------------- | :----- | :-------------------------------------------- | :-------------------------------------- | :----------------------------------------------- |
+| `POST`   | `/api/prompts/sync`          | Bearer | Двусторонняя инкрементальная синхронизация    | `{ lastSyncTimestamp?, created?, updated?, deletedIds? }` | `200 OK` `{ applied, serverChanges, syncTimestamp }` |
+| `GET`    | `/api/prompts`               | Bearer | Список промптов текущего пользователя         | —                                       | `200 OK` `{ prompts: [...] }`                    |
 | `POST`   | `/api/prompts/create`        | Bearer | Создание нового промпта                       | `{ title, body, tags, icon?, access? }` | `201 Created` `{ message }`   |
 | `PATCH`  | `/api/prompts/change/title`  | Bearer | Изменение заголовка промпта                   | `{ promptId, title }`                   | `200 OK` `{ message }`        |
 | `PATCH`  | `/api/prompts/change/body`   | Bearer | Изменение текста промпта                      | `{ promptId, body }`                    | `200 OK` `{ message }`        |
@@ -376,7 +388,184 @@ erDiagram
 
 ---
 
-## 7. Аутентификация и безопасность
+## 7. Принцип работы двусторонней синхронизации (Offline-First Sync)
+
+В **TemplaGem** реализован полнофункциональный механизм **двусторонней пакетной инкрементальной синхронизации** (`POST /api/prompts/sync`) с поддержкой автономного режима (**Offline-First**). Клиенты (браузерное расширение, веб-интерфейс) могут создавать, обновлять и удалять промпты при отсутствии сетевого подключения, а затем объединять данные с сервером за один HTTP-запрос.
+
+### 7.1. Ключевые концепции и архитектурные решения
+
+1. **Временные идентификаторы (`clientTempId`)**:
+   - При создании промпта офлайн клиент локально генерирует временный ID (`clientTempId`, например, в формате UUID v4).
+   - Сервер создает постоянную запись в MongoDB, сохраняет `clientTempId` и возвращает клиенту маппинг `{ clientTempId, serverId }`.
+   - Клиент заменяет временный ID в своем локальном хранилище на постоянный `_id` сервера.
+
+2. **Мягкое удаление (Soft Delete / Tombstones)**:
+   - В распределенной архитектуре физическое удаление (`deleteOne`) приводит к тому, что другие клиенты не могут узнать об удалении сущности.
+   - Вместо этого используется поле `deletedAt: Date | null`. Промпт помечается меткой времени удаления, а его ID исключается из массива `user.prompts`.
+   - При синхронизации сервер отдает список `deletedIds`, у которых `deletedAt > lastSyncTimestamp`, что позволяет клиентам удалить эти промпты из локального кэша.
+
+3. **Разрешение конфликтов: Last-Write-Wins (LWW)**:
+   - При одновременном редактировании одного и того же промпта на разных устройствах сервер сравнивает временные метки:
+     - Если клиентская метка `clientUpdatedAt >= server.updatedAt`, сервер применяет изменения клиента и обновляет `updatedAt`.
+     - Если серверная запись была обновлена позже (`server.updatedAt > clientUpdatedAt`), изменение клиента отклоняется, а в блоке `serverChanges` клиенту возвращается актуальная версия с сервера.
+
+4. **Инкрементальная выборка изменений (`lastSyncTimestamp`)**:
+   - Клиент передает временную метку предыдущей успешной синхронизации (`lastSyncTimestamp`).
+   - Сервер возвращает только дельту: документы с `updatedAt > lastSyncTimestamp` и удаленные ID с `deletedAt > lastSyncTimestamp`.
+   - При первой синхронизации (`lastSyncTimestamp: null`) сервер отдает все активные промпты пользователя.
+   - Исключение эхо-изменений: сущности, только что созданные или удаленные текущим запросом, не дублируются в `serverChanges`.
+
+5. **Feature Flag (`FEATURE_CLOUD_SYNC`)**:
+   - Контроллер роута проверяет переменную окружения `FEATURE_CLOUD_SYNC`. Если флаг установлен в `"false"` (и окружение не `test`), роут возвращает `403 Forbidden` с сообщением о временном отключении синхронизации.
+
+---
+
+### 7.2. Архитектурная диаграмма синхронизации (Sequence Diagram)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client as Клиент (Extension / App)
+    participant API as POST /api/prompts/sync
+    participant Service as PromptService
+    participant DB as MongoDB
+
+    Client->>API: POST /api/prompts/sync (JWT Bearer, SyncPromptsPayloadDto)
+    Note over Client,API: lastSyncTimestamp, created[], updated[], deletedIds[]
+    
+    API->>API: Проверка FEATURE_CLOUD_SYNC и Zod-валидация
+    API->>Service: syncPrompts(userId, payload)
+    
+    rect rgb(240, 248, 255)
+        Note over Service,DB: Шаг 1. Пакетное создание (Created)
+        Service->>DB: promptModel.create({ clientTempId, ... })
+        Service->>DB: userModel.findByIdAndUpdate($push: prompts)
+    end
+
+    rect rgb(255, 250, 240)
+        Note over Service,DB: Шаг 2. Разрешение конфликтов LWW (Updated)
+        Service->>DB: promptModel.findOne({ _id, createdBy, deletedAt: null })
+        alt clientUpdatedAt >= server.updatedAt
+            Service->>DB: prompt.save() (применяем правки клиента)
+        else server.updatedAt > clientUpdatedAt
+            Note over Service: Серверная версия новее (пропускаем обновление клиента)
+        end
+    end
+
+    rect rgb(255, 240, 245)
+        Note over Service,DB: Шаг 3. Мягкое удаление (Deleted)
+        Service->>DB: promptModel.findOneAndUpdate({ deletedAt: now })
+        Service->>DB: userModel.findByIdAndUpdate($pull: prompts)
+    end
+
+    rect rgb(240, 255, 240)
+        Note over Service,DB: Шаг 4. Сбор дельты серверных изменений
+        Service->>DB: find({ updatedAt > lastSyncTimestamp, deletedAt: null, $nin: created })
+        Service->>DB: find({ deletedAt > lastSyncTimestamp, $nin: deleted })
+    end
+
+    Service-->>API: SyncPromptsResultDto (applied, serverChanges, syncTimestamp)
+    API-->>Client: 200 OK (JSON)
+    
+    rect rgb(245, 245, 245)
+        Note over Client: Клиент заменяет clientTempId -> serverId,<br/>применяет serverChanges локально и<br/>сохраняет новый syncTimestamp
+    end
+```
+
+---
+
+### 7.3. Контракты данных: DTO запроса и ответа
+
+#### Схема запроса (`SyncPromptsPayloadDto`):
+
+```typescript
+interface SyncPromptsPayloadDto {
+  lastSyncTimestamp?: string | null;  // ISO timestamp предыдущей синхронизации
+  created?: SyncPromptItemDto[];      // Промпты, созданные клиентом
+  updated?: SyncPromptItemDto[];      // Промпты, отредактированные клиентом
+  deletedIds?: string[];              // Идентификаторы удаленных клиентом промптов
+}
+```
+
+Пример JSON тела запроса:
+
+```json
+{
+  "lastSyncTimestamp": "2026-10-25T12:00:00.000Z",
+  "created": [
+    {
+      "clientTempId": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      "title": "Senior Code Reviewer",
+      "body": "Act as a Senior Software Engineer specializing in TypeScript...",
+      "tags": ["development", "review"],
+      "icon": "code",
+      "access": "private"
+    }
+  ],
+  "updated": [
+    {
+      "promptId": "66a26d708309cf8fcf650b2b",
+      "title": "Refactoring Assistant v2",
+      "body": "Updated prompt body...",
+      "tags": ["refactoring", "clean-code"],
+      "updatedAt": "2026-10-25T13:45:00.000Z"
+    }
+  ],
+  "deletedIds": [
+    "66a26d708309cf8fcf650b2c"
+  ]
+}
+```
+
+#### Схема ответа (`SyncPromptsResultDto`):
+
+```typescript
+interface SyncPromptsResultDto {
+  applied: {
+    created: Array<{
+      clientTempId?: string;
+      serverId: string;
+      createdAt: Date;
+      updatedAt: Date;
+    }>;
+    updated: string[];     // Массив promptId, успешно обновленных на сервере
+    deleted: string[];     // Массив promptId, успешно помеченных удаленными
+  };
+  serverChanges: {
+    prompts: IPrompt[];    // Изменения на сервере после lastSyncTimestamp
+    deletedIds: string[];  // ID промптов, удаленных на сервере
+  };
+  syncTimestamp: string;   // Текущий ISO timestamp сервера для следующего вызова
+}
+```
+
+Пример JSON ответа:
+
+```json
+{
+  "applied": {
+    "created": [
+      {
+        "clientTempId": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+        "serverId": "671baa345f1b2c3d4e5f6001",
+        "createdAt": "2026-10-25T14:00:00.000Z",
+        "updatedAt": "2026-10-25T14:00:00.000Z"
+      }
+    ],
+    "updated": ["66a26d708309cf8fcf650b2b"],
+    "deleted": ["66a26d708309cf8fcf650b2c"]
+  },
+  "serverChanges": {
+    "prompts": [],
+    "deletedIds": []
+  },
+  "syncTimestamp": "2026-10-25T14:00:00.125Z"
+}
+```
+
+---
+
+## 8. Аутентификация и безопасность
 
 ### Схема работы JWT
 
@@ -402,13 +591,13 @@ sequenceDiagram
 
 ---
 
-## 8. Конфигурация и окружение
+## 9. Конфигурация и окружение
 
-Подключение к базе данных управляется централизованно через [src/utils/dbConnect.ts](file:///Users/levkovskyivladimir/Dev/PromptHub_backend/src/utils/dbConnect.ts):
+Подключение к базе данных управляется централизованно через [src/utils/dbConnect.ts](../src/utils/dbConnect.ts):
 
 - При `MONGO_URL` (например, в Docker Compose) — используется данный URL.
-- При `MONGO_ENV=local` — используется `MONGO_LOCAL_URL` (`mongodb://promptHub:promptHub@127.0.0.1:27017/promptHub?authSource=admin`).
-- При `MONGO_ENV=remote` — используется `MONGO_REMOTE_URL` (`mongodb://...:27017/promptHub?authSource=admin`).
+- При `MONGO_ENV=local` — используется `MONGO_LOCAL_URL` (`mongodb://templaGem:templaGem@127.0.0.1:27017/templaGem?authSource=admin`).
+- При `MONGO_ENV=remote` — используется `MONGO_REMOTE_URL` (`mongodb://...:27017/templaGem?authSource=admin`).
 
 ### Swagger UI
 

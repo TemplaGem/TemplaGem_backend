@@ -1,9 +1,9 @@
 export const swaggerDocument = {
   openapi: "3.0.0",
   info: {
-    title: "PromptHub API",
+    title: "TemplaGem API",
     version: "1.0.0",
-    description: "API документация для PromptHub backend",
+    description: "API documentation for TemplaGem backend",
   },
   servers: [
     {
@@ -17,7 +17,7 @@ export const swaggerDocument = {
         type: "http",
         scheme: "bearer",
         bearerFormat: "JWT",
-        description: "Введите JWT access token",
+        description: "Enter JWT access token",
       },
       cookieAuth: {
         type: "apiKey",
@@ -60,7 +60,7 @@ export const swaggerDocument = {
             maxLength: 32,
             example: "Password1!",
             description:
-              "8-32 символа, минимум одна заглавная буква и один спецсимвол",
+              "8-32 characters, at least one uppercase letter and one special character",
           },
         },
       },
@@ -122,7 +122,7 @@ export const swaggerDocument = {
             maxLength: 32,
             example: "NewPassword1!",
             description:
-              "8-32 символа, минимум одна заглавная буква и один спецсимвол",
+              "8-32 characters, at least one uppercase letter and one special character",
           },
         },
       },
@@ -303,13 +303,141 @@ export const swaggerDocument = {
           },
         },
       },
+      SyncPromptItem: {
+        type: "object",
+        required: ["title", "body"],
+        properties: {
+          clientTempId: {
+            type: "string",
+            example: "550e8400-e29b-41d4-a716-446655440000",
+          },
+          promptId: {
+            type: "string",
+            example: "66a26d708309cf8fcf650b2b",
+          },
+          title: {
+            type: "string",
+            example: "Senior Code Reviewer",
+          },
+          body: {
+            type: "string",
+            example: "Act as a Senior Software Engineer...",
+          },
+          tags: {
+            type: "array",
+            items: {
+              type: "string",
+            },
+            example: ["development", "code-review"],
+          },
+          icon: {
+            type: "string",
+            example: "code",
+          },
+          access: {
+            type: "string",
+            enum: ["public", "private", "link"],
+            example: "private",
+          },
+          createdAt: {
+            type: "string",
+            format: "date-time",
+            example: "2026-10-25T12:00:00.000Z",
+          },
+          updatedAt: {
+            type: "string",
+            format: "date-time",
+            example: "2026-10-25T12:00:00.000Z",
+          },
+        },
+      },
+      SyncPromptsRequest: {
+        type: "object",
+        properties: {
+          lastSyncTimestamp: {
+            type: "string",
+            format: "date-time",
+            nullable: true,
+            example: "2026-10-25T10:00:00.000Z",
+          },
+          created: {
+            type: "array",
+            items: {
+              $ref: "#/components/schemas/SyncPromptItem",
+            },
+          },
+          updated: {
+            type: "array",
+            items: {
+              $ref: "#/components/schemas/SyncPromptItem",
+            },
+          },
+          deletedIds: {
+            type: "array",
+            items: {
+              type: "string",
+            },
+            example: ["66a26d708309cf8fcf650b2b"],
+          },
+        },
+      },
+      SyncPromptsResponse: {
+        type: "object",
+        properties: {
+          applied: {
+            type: "object",
+            properties: {
+              created: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    clientTempId: { type: "string" },
+                    serverId: { type: "string" },
+                    createdAt: { type: "string", format: "date-time" },
+                    updatedAt: { type: "string", format: "date-time" },
+                  },
+                },
+              },
+              updated: {
+                type: "array",
+                items: { type: "string" },
+              },
+              deleted: {
+                type: "array",
+                items: { type: "string" },
+              },
+            },
+          },
+          serverChanges: {
+            type: "object",
+            properties: {
+              prompts: {
+                type: "array",
+                items: {
+                  $ref: "#/components/schemas/PromptItem",
+                },
+              },
+              deletedIds: {
+                type: "array",
+                items: { type: "string" },
+              },
+            },
+          },
+          syncTimestamp: {
+            type: "string",
+            format: "date-time",
+            example: "2026-10-25T12:05:00.000Z",
+          },
+        },
+      },
     },
   },
   paths: {
     "/api/auth/register": {
       post: {
         tags: ["Auth"],
-        summary: "Регистрация нового пользователя",
+        summary: "Register a new user",
         requestBody: {
           required: true,
           content: {
@@ -322,7 +450,7 @@ export const swaggerDocument = {
         },
         responses: {
           201: {
-            description: "Пользователь успешно зарегистрирован",
+            description: "User registered successfully",
             content: {
               "application/json": {
                 schema: {
@@ -332,7 +460,7 @@ export const swaggerDocument = {
             },
           },
           400: {
-            description: "Ошибка валидации входных данных",
+            description: "Input data validation error",
             content: {
               "application/json": {
                 schema: {
@@ -347,9 +475,9 @@ export const swaggerDocument = {
     "/api/auth/login": {
       post: {
         tags: ["Auth"],
-        summary: "Аутентификация пользователя (логин)",
+        summary: "Authenticate user (login)",
         description:
-          "Устанавливает HttpOnly cookie `refreshToken` и возвращает `accessToken` с `refreshToken`.",
+          "Sets HttpOnly cookie `refreshToken` and returns `accessToken` with `refreshToken`.",
         requestBody: {
           required: true,
           content: {
@@ -362,7 +490,7 @@ export const swaggerDocument = {
         },
         responses: {
           200: {
-            description: "Успешная авторизация",
+            description: "Authentication successful",
             content: {
               "application/json": {
                 schema: {
@@ -372,7 +500,7 @@ export const swaggerDocument = {
             },
           },
           400: {
-            description: "Некорректный запрос или ошибки валидации",
+            description: "Invalid request or validation error",
             content: {
               "application/json": {
                 schema: {
@@ -382,7 +510,7 @@ export const swaggerDocument = {
             },
           },
           401: {
-            description: "Неверный логин или пароль",
+            description: "Invalid email or password",
             content: {
               "application/json": {
                 schema: {
@@ -397,7 +525,7 @@ export const swaggerDocument = {
     "/api/auth/refresh": {
       post: {
         tags: ["Auth"],
-        summary: "Обновление access токена через refresh token cookie",
+        summary: "Refresh access token via refresh token cookie",
         security: [
           {
             cookieAuth: [],
@@ -405,7 +533,7 @@ export const swaggerDocument = {
         ],
         responses: {
           200: {
-            description: "Новый access token получен",
+            description: "New access token obtained",
             content: {
               "application/json": {
                 schema: {
@@ -415,7 +543,7 @@ export const swaggerDocument = {
             },
           },
           401: {
-            description: "Refresh токен отсутствует или невалиден",
+            description: "Refresh token is missing or invalid",
             content: {
               "application/json": {
                 schema: {
@@ -430,10 +558,10 @@ export const swaggerDocument = {
     "/api/auth/logout": {
       post: {
         tags: ["Auth"],
-        summary: "Выход из системы (очистка refreshToken cookie)",
+        summary: "Sign out user (clear refreshToken cookie)",
         responses: {
           200: {
-            description: "Успешный выход",
+            description: "Logged out successfully",
             content: {
               "application/json": {
                 schema: {
@@ -448,7 +576,7 @@ export const swaggerDocument = {
     "/api/users": {
       get: {
         tags: ["Users"],
-        summary: "Получение списка всех пользователей",
+        summary: "Get list of all users",
         security: [
           {
             bearerAuth: [],
@@ -456,7 +584,7 @@ export const swaggerDocument = {
         ],
         responses: {
           200: {
-            description: "Список пользователей успешно получен",
+            description: "Users list successfully retrieved",
             content: {
               "application/json": {
                 schema: {
@@ -466,7 +594,7 @@ export const swaggerDocument = {
             },
           },
           401: {
-            description: "Не авторизован",
+            description: "Unauthorized",
             content: {
               "application/json": {
                 schema: {
@@ -479,7 +607,7 @@ export const swaggerDocument = {
       },
       delete: {
         tags: ["Users"],
-        summary: "Удаление текущего пользователя",
+        summary: "Delete current user",
         security: [
           {
             bearerAuth: [],
@@ -487,7 +615,7 @@ export const swaggerDocument = {
         ],
         responses: {
           200: {
-            description: "Пользователь успешно удален",
+            description: "User deleted successfully",
             content: {
               "application/json": {
                 schema: {
@@ -497,7 +625,7 @@ export const swaggerDocument = {
             },
           },
           401: {
-            description: "Не авторизован",
+            description: "Unauthorized",
             content: {
               "application/json": {
                 schema: {
@@ -512,7 +640,7 @@ export const swaggerDocument = {
     "/api/users/email": {
       put: {
         tags: ["Users"],
-        summary: "Обновление email пользователя",
+        summary: "Update user email",
         security: [
           {
             bearerAuth: [],
@@ -530,7 +658,7 @@ export const swaggerDocument = {
         },
         responses: {
           200: {
-            description: "Email успешно обновлен",
+            description: "Email updated successfully",
             content: {
               "application/json": {
                 schema: {
@@ -540,7 +668,7 @@ export const swaggerDocument = {
             },
           },
           400: {
-            description: "Ошибка валидации email",
+            description: "Email validation error",
             content: {
               "application/json": {
                 schema: {
@@ -550,7 +678,7 @@ export const swaggerDocument = {
             },
           },
           401: {
-            description: "Не авторизован",
+            description: "Unauthorized",
             content: {
               "application/json": {
                 schema: {
@@ -565,7 +693,7 @@ export const swaggerDocument = {
     "/api/users/password": {
       patch: {
         tags: ["Users"],
-        summary: "Обновление пароля пользователя",
+        summary: "Update user password",
         security: [
           {
             bearerAuth: [],
@@ -583,7 +711,7 @@ export const swaggerDocument = {
         },
         responses: {
           200: {
-            description: "Пароль успешно обновлен",
+            description: "Password updated successfully",
             content: {
               "application/json": {
                 schema: {
@@ -593,7 +721,7 @@ export const swaggerDocument = {
             },
           },
           400: {
-            description: "Ошибка валидации нового пароля",
+            description: "New password validation error",
             content: {
               "application/json": {
                 schema: {
@@ -603,7 +731,7 @@ export const swaggerDocument = {
             },
           },
           401: {
-            description: "Не авторизован",
+            description: "Unauthorized",
             content: {
               "application/json": {
                 schema: {
@@ -618,7 +746,7 @@ export const swaggerDocument = {
     "/api/users/{email}": {
       get: {
         tags: ["Users"],
-        summary: "Получение конкретного пользователя по email",
+        summary: "Get specific user by email",
         security: [
           {
             bearerAuth: [],
@@ -629,7 +757,7 @@ export const swaggerDocument = {
             name: "email",
             in: "path",
             required: true,
-            description: "Email пользователя",
+            description: "User email",
             schema: {
               type: "string",
               format: "email",
@@ -639,7 +767,7 @@ export const swaggerDocument = {
         ],
         responses: {
           200: {
-            description: "Пользователь успешно получен",
+            description: "User retrieved successfully",
             content: {
               "application/json": {
                 schema: {
@@ -649,7 +777,7 @@ export const swaggerDocument = {
             },
           },
           401: {
-            description: "Не авторизован",
+            description: "Unauthorized",
             content: {
               "application/json": {
                 schema: {
@@ -659,7 +787,72 @@ export const swaggerDocument = {
             },
           },
           404: {
-            description: "Пользователь не найден",
+            description: "User not found",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/api/prompts/sync": {
+      post: {
+        tags: ["Prompts"],
+        summary: "Batch synchronization of prompts (Local-First sync)",
+        description:
+          "Synchronizes local client state with the cloud backend using Last-Write-Wins and tombstone-based soft delete.",
+        security: [
+          {
+            bearerAuth: [],
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                $ref: "#/components/schemas/SyncPromptsRequest",
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: "Prompts synchronized successfully",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/SyncPromptsResponse",
+                },
+              },
+            },
+          },
+          400: {
+            description: "Validation error",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+          401: {
+            description: "Unauthorized",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ErrorResponse",
+                },
+              },
+            },
+          },
+          403: {
+            description: "Feature flag disabled",
             content: {
               "application/json": {
                 schema: {
@@ -674,7 +867,7 @@ export const swaggerDocument = {
     "/api/prompts": {
       get: {
         tags: ["Prompts"],
-        summary: "Получение списка промптов текущего пользователя",
+        summary: "Get current user prompts list",
         security: [
           {
             bearerAuth: [],
@@ -682,7 +875,7 @@ export const swaggerDocument = {
         ],
         responses: {
           200: {
-            description: "Список промптов успешно получен",
+            description: "Prompts list successfully retrieved",
             content: {
               "application/json": {
                 schema: {
@@ -692,7 +885,7 @@ export const swaggerDocument = {
             },
           },
           401: {
-            description: "Не авторизован",
+            description: "Unauthorized",
             content: {
               "application/json": {
                 schema: {
@@ -707,7 +900,7 @@ export const swaggerDocument = {
     "/api/prompts/create": {
       post: {
         tags: ["Prompts"],
-        summary: "Создание нового промпта",
+        summary: "Create a new prompt",
         security: [
           {
             bearerAuth: [],
@@ -725,7 +918,7 @@ export const swaggerDocument = {
         },
         responses: {
           201: {
-            description: "Промпт успешно создан",
+            description: "Prompt created successfully",
             content: {
               "application/json": {
                 schema: {
@@ -735,7 +928,7 @@ export const swaggerDocument = {
             },
           },
           400: {
-            description: "Ошибка валидации входных данных",
+            description: "Validation error",
             content: {
               "application/json": {
                 schema: {
@@ -745,7 +938,7 @@ export const swaggerDocument = {
             },
           },
           401: {
-            description: "Не авторизован",
+            description: "Unauthorized",
             content: {
               "application/json": {
                 schema: {
@@ -760,7 +953,7 @@ export const swaggerDocument = {
     "/api/prompts/change/title": {
       patch: {
         tags: ["Prompts"],
-        summary: "Изменение заголовка промпта",
+        summary: "Update prompt title",
         security: [
           {
             bearerAuth: [],
@@ -778,7 +971,7 @@ export const swaggerDocument = {
         },
         responses: {
           200: {
-            description: "Заголовок промпта успешно обновлен",
+            description: "Prompt title updated successfully",
             content: {
               "application/json": {
                 schema: {
@@ -788,7 +981,7 @@ export const swaggerDocument = {
             },
           },
           400: {
-            description: "Ошибка валидации",
+            description: "Validation error",
             content: {
               "application/json": {
                 schema: {
@@ -798,7 +991,7 @@ export const swaggerDocument = {
             },
           },
           401: {
-            description: "Не авторизован",
+            description: "Unauthorized",
             content: {
               "application/json": {
                 schema: {
@@ -813,7 +1006,7 @@ export const swaggerDocument = {
     "/api/prompts/change/body": {
       patch: {
         tags: ["Prompts"],
-        summary: "Изменение текста промпта",
+        summary: "Update prompt body content",
         security: [
           {
             bearerAuth: [],
@@ -831,7 +1024,7 @@ export const swaggerDocument = {
         },
         responses: {
           200: {
-            description: "Текст промпта успешно обновлен",
+            description: "Prompt body updated successfully",
             content: {
               "application/json": {
                 schema: {
@@ -841,7 +1034,7 @@ export const swaggerDocument = {
             },
           },
           400: {
-            description: "Ошибка валидации",
+            description: "Validation error",
             content: {
               "application/json": {
                 schema: {
@@ -851,7 +1044,7 @@ export const swaggerDocument = {
             },
           },
           401: {
-            description: "Не авторизован",
+            description: "Unauthorized",
             content: {
               "application/json": {
                 schema: {
@@ -866,7 +1059,7 @@ export const swaggerDocument = {
     "/api/prompts/change/tags": {
       patch: {
         tags: ["Prompts"],
-        summary: "Изменение тегов промпта",
+        summary: "Update prompt tags",
         security: [
           {
             bearerAuth: [],
@@ -884,7 +1077,7 @@ export const swaggerDocument = {
         },
         responses: {
           200: {
-            description: "Теги промпта успешно обновлены",
+            description: "Prompt tags updated successfully",
             content: {
               "application/json": {
                 schema: {
@@ -894,7 +1087,7 @@ export const swaggerDocument = {
             },
           },
           400: {
-            description: "Ошибка валидации",
+            description: "Validation error",
             content: {
               "application/json": {
                 schema: {
@@ -904,7 +1097,7 @@ export const swaggerDocument = {
             },
           },
           401: {
-            description: "Не авторизован",
+            description: "Unauthorized",
             content: {
               "application/json": {
                 schema: {
@@ -919,7 +1112,7 @@ export const swaggerDocument = {
     "/api/prompts/change/icon": {
       patch: {
         tags: ["Prompts"],
-        summary: "Изменение иконки промпта",
+        summary: "Update prompt icon",
         security: [
           {
             bearerAuth: [],
@@ -937,7 +1130,7 @@ export const swaggerDocument = {
         },
         responses: {
           200: {
-            description: "Иконка промпта успешно обновлена",
+            description: "Prompt icon updated successfully",
             content: {
               "application/json": {
                 schema: {
@@ -947,7 +1140,7 @@ export const swaggerDocument = {
             },
           },
           400: {
-            description: "Ошибка валидации",
+            description: "Validation error",
             content: {
               "application/json": {
                 schema: {
@@ -957,7 +1150,7 @@ export const swaggerDocument = {
             },
           },
           401: {
-            description: "Не авторизован",
+            description: "Unauthorized",
             content: {
               "application/json": {
                 schema: {
@@ -967,7 +1160,7 @@ export const swaggerDocument = {
             },
           },
           404: {
-            description: "Промпт не найден",
+            description: "Prompt not found",
             content: {
               "application/json": {
                 schema: {
@@ -982,7 +1175,7 @@ export const swaggerDocument = {
     "/api/prompts/delete": {
       delete: {
         tags: ["Prompts"],
-        summary: "Удаление промпта",
+        summary: "Delete prompt",
         security: [
           {
             bearerAuth: [],
@@ -1000,7 +1193,7 @@ export const swaggerDocument = {
         },
         responses: {
           200: {
-            description: "Промпт успешно удален",
+            description: "Prompt deleted successfully",
             content: {
               "application/json": {
                 schema: {
@@ -1010,7 +1203,7 @@ export const swaggerDocument = {
             },
           },
           400: {
-            description: "Ошибка валидации",
+            description: "Validation error",
             content: {
               "application/json": {
                 schema: {
@@ -1020,7 +1213,7 @@ export const swaggerDocument = {
             },
           },
           401: {
-            description: "Не авторизован",
+            description: "Unauthorized",
             content: {
               "application/json": {
                 schema: {
@@ -1035,7 +1228,7 @@ export const swaggerDocument = {
     "/api/prompts/delete/all": {
       delete: {
         tags: ["Prompts"],
-        summary: "Удаление всех промптов текущего пользователя",
+        summary: "Delete all prompts of the current user",
         security: [
           {
             bearerAuth: [],
@@ -1043,7 +1236,7 @@ export const swaggerDocument = {
         ],
         responses: {
           200: {
-            description: "Все промпты успешно удалены",
+            description: "All prompts deleted successfully",
             content: {
               "application/json": {
                 schema: {
@@ -1053,7 +1246,7 @@ export const swaggerDocument = {
             },
           },
           401: {
-            description: "Не авторизован",
+            description: "Unauthorized",
             content: {
               "application/json": {
                 schema: {

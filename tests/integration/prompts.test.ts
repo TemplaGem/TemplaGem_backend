@@ -301,7 +301,12 @@ describe("Prompts Routes (/api/prompts)", () => {
       expect(dbUser?.prompts).toHaveLength(0);
 
       const dbPrompt = await promptModel.findById(promptId);
-      expect(dbPrompt).toBeNull();
+      expect(dbPrompt?.deletedAt).not.toBeNull();
+
+      const getRes = await request(app)
+        .get("/api/prompts")
+        .set("Authorization", `Bearer ${token}`);
+      expect(getRes.body.prompts).toHaveLength(0);
     });
 
     it("should delete all prompts of the user via DELETE /api/prompts/delete/all", async () => {
@@ -333,6 +338,7 @@ describe("Prompts Routes (/api/prompts)", () => {
 
       const count = await promptModel.countDocuments({
         createdBy: dbUser?._id,
+        deletedAt: null,
       });
       expect(count).toBe(0);
     });

@@ -4,6 +4,7 @@ export type accessType = "public" | "private" | "link";
 export interface IPromptDocument extends Document {
   _id: Types.ObjectId;
   createdBy: Types.ObjectId;
+  clientTempId?: string | undefined;
   title: string;
   body: string;
   icon: string;
@@ -11,6 +12,7 @@ export interface IPromptDocument extends Document {
   likes: number;
   downloads: number;
   access: accessType;
+  deletedAt?: Date | null | undefined;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +25,7 @@ export const promptSchema = new Schema<IPromptDocument>(
       required: true,
       index: true,
     },
+    clientTempId: { type: String, required: false },
     title: { type: String, required: true },
     body: { type: String, required: true },
     icon: { type: String, required: false, default: "" },
@@ -35,8 +38,11 @@ export const promptSchema = new Schema<IPromptDocument>(
       required: true,
       default: "private",
     },
+    deletedAt: { type: Date, default: null, index: true },
   },
   { timestamps: true },
 );
+
+promptSchema.index({ createdBy: 1, updatedAt: 1 });
 
 export const promptModel = model<IPromptDocument>("PromptModel", promptSchema);

@@ -5,6 +5,7 @@ const userSchema = new Schema<IUser>({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   registeredAt: { type: Date, required: true, default: Date.now },
+  resetHash: { type: String, required: true, default: "" },
   prompts: [
     {
       type: Schema.Types.ObjectId,
