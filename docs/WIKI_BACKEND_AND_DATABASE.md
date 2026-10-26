@@ -272,23 +272,24 @@ erDiagram
 - **Коллекция:** `promptmodels` (или `prompts`)
 - **TypeScript интерфейс:** `IPromptDocument`
 
-| Поле           | Тип                     | Обязательное      | Дефолтное значение | Описание                                                           |
-| :------------- | :---------------------- | :---------------- | :----------------- | :----------------------------------------------------------------- |
-| `_id`          | `Types.ObjectId`        | Да (генерируется) | Auto               | Идентификатор промпта                                              |
-| `createdBy`    | `Schema.Types.ObjectId` | Да                | —                  | Ref на `UserModel`, с индексом для быстрого поиска                 |
-| `clientTempId` | `String`                | Нет               | `""`               | Временный ID на стороне клиента для Offline-First синхронизации    |
-| `title`        | `String`                | Да                | —                  | Название промпта                                                   |
-| `body`         | `String`                | Да                | —                  | Содержимое/текст промпта                                           |
-| `icon`         | `String`                | Да                | `""`               | Иконка промпта                                                     |
-| `tags`         | `[String]`              | Да                | `[]`               | Список тегов (максимум 10)                                         |
-| `likes`        | `Number`                | Да                | `0`                | Счётчик лайков                                                     |
-| `downloads`    | `Number`                | Да                | `0`                | Счётчик скачиваний/использований                                   |
-| `access`       | `String` (enum)         | Да                | `"private"`        | Доступ: `"public"`, `"private"` или `"link"`                       |
-| `deletedAt`    | `Date`                  | Нет               | `null`             | Метка мягкого удаления (Tombstone) для фильтрации и синхронизации  |
-| `createdAt`    | `Date`                  | Авто              | `now`              | Дата создания (`timestamps: true`)                                 |
-| `updatedAt`    | `Date`                  | Авто              | `now`              | Дата изменения (`timestamps: true`)                                |
+| Поле           | Тип                     | Обязательное      | Дефолтное значение | Описание                                                          |
+| :------------- | :---------------------- | :---------------- | :----------------- | :---------------------------------------------------------------- |
+| `_id`          | `Types.ObjectId`        | Да (генерируется) | Auto               | Идентификатор промпта                                             |
+| `createdBy`    | `Schema.Types.ObjectId` | Да                | —                  | Ref на `UserModel`, с индексом для быстрого поиска                |
+| `clientTempId` | `String`                | Нет               | `""`               | Временный ID на стороне клиента для Offline-First синхронизации   |
+| `title`        | `String`                | Да                | —                  | Название промпта                                                  |
+| `body`         | `String`                | Да                | —                  | Содержимое/текст промпта                                          |
+| `icon`         | `String`                | Да                | `""`               | Иконка промпта                                                    |
+| `tags`         | `[String]`              | Да                | `[]`               | Список тегов (максимум 10)                                        |
+| `likes`        | `Number`                | Да                | `0`                | Счётчик лайков                                                    |
+| `downloads`    | `Number`                | Да                | `0`                | Счётчик скачиваний/использований                                  |
+| `access`       | `String` (enum)         | Да                | `"private"`        | Доступ: `"public"`, `"private"` или `"link"`                      |
+| `deletedAt`    | `Date`                  | Нет               | `null`             | Метка мягкого удаления (Tombstone) для фильтрации и синхронизации |
+| `createdAt`    | `Date`                  | Авто              | `now`              | Дата создания (`timestamps: true`)                                |
+| `updatedAt`    | `Date`                  | Авто              | `now`              | Дата изменения (`timestamps: true`)                               |
 
 **Индексы `promptSchema`:**
+
 - `createdBy` (1)
 - `deletedAt` (1)
 - Составной индекс `{ createdBy: 1, updatedAt: 1 }` (критичен для высокой скорости инкрементальной выборки в `/api/prompts/sync`)
@@ -367,18 +368,18 @@ erDiagram
 
 ### 6.3. Промпты (`/api/prompts`)
 
-| Метод    | Путь                         | Auth   | Описание                                      | Тело запроса                            | Ответ                                            |
-| :------- | :--------------------------- | :----- | :-------------------------------------------- | :-------------------------------------- | :----------------------------------------------- |
+| Метод    | Путь                         | Auth   | Описание                                      | Тело запроса                                              | Ответ                                                |
+| :------- | :--------------------------- | :----- | :-------------------------------------------- | :-------------------------------------------------------- | :--------------------------------------------------- |
 | `POST`   | `/api/prompts/sync`          | Bearer | Двусторонняя инкрементальная синхронизация    | `{ lastSyncTimestamp?, created?, updated?, deletedIds? }` | `200 OK` `{ applied, serverChanges, syncTimestamp }` |
-| `GET`    | `/api/prompts`               | Bearer | Список промптов текущего пользователя         | —                                       | `200 OK` `{ prompts: [...] }`                    |
-| `POST`   | `/api/prompts/create`        | Bearer | Создание нового промпта                       | `{ title, body, tags, icon?, access? }` | `201 Created` `{ message }`   |
-| `PATCH`  | `/api/prompts/change/title`  | Bearer | Изменение заголовка промпта                   | `{ promptId, title }`                   | `200 OK` `{ message }`        |
-| `PATCH`  | `/api/prompts/change/body`   | Bearer | Изменение текста промпта                      | `{ promptId, body }`                    | `200 OK` `{ message }`        |
-| `PATCH`  | `/api/prompts/change/tags`   | Bearer | Изменение тегов                               | `{ promptId, tags }`                    | `200 OK` `{ message }`        |
-| `PATCH`  | `/api/prompts/change/icon`   | Bearer | Изменение иконки                              | `{ promptId, icon }`                    | `200 OK` `{ message }`        |
-| `PATCH`  | `/api/prompts/change/access` | Bearer | Изменение доступа (`public`/`private`/`link`) | `{ promptId, access }`                  | `200 OK` `{ message }`        |
-| `DELETE` | `/api/prompts/delete`        | Bearer | Удаление конкретного промпта                  | `{ promptId }`                          | `200 OK` `{ message }`        |
-| `DELETE` | `/api/prompts/delete/all`    | Bearer | Удаление всех промптов пользователя           | —                                       | `200 OK` `{ message }`        |
+| `GET`    | `/api/prompts`               | Bearer | Список промптов текущего пользователя         | —                                                         | `200 OK` `{ prompts: [...] }`                        |
+| `POST`   | `/api/prompts/create`        | Bearer | Создание нового промпта                       | `{ title, body, tags, icon?, access? }`                   | `201 Created` `{ message }`                          |
+| `PATCH`  | `/api/prompts/change/title`  | Bearer | Изменение заголовка промпта                   | `{ promptId, title }`                                     | `200 OK` `{ message }`                               |
+| `PATCH`  | `/api/prompts/change/body`   | Bearer | Изменение текста промпта                      | `{ promptId, body }`                                      | `200 OK` `{ message }`                               |
+| `PATCH`  | `/api/prompts/change/tags`   | Bearer | Изменение тегов                               | `{ promptId, tags }`                                      | `200 OK` `{ message }`                               |
+| `PATCH`  | `/api/prompts/change/icon`   | Bearer | Изменение иконки                              | `{ promptId, icon }`                                      | `200 OK` `{ message }`                               |
+| `PATCH`  | `/api/prompts/change/access` | Bearer | Изменение доступа (`public`/`private`/`link`) | `{ promptId, access }`                                    | `200 OK` `{ message }`                               |
+| `DELETE` | `/api/prompts/delete`        | Bearer | Удаление конкретного промпта                  | `{ promptId }`                                            | `200 OK` `{ message }`                               |
+| `DELETE` | `/api/prompts/delete/all`    | Bearer | Удаление всех промптов пользователя           | —                                                         | `200 OK` `{ message }`                               |
 
 ### 6.4. Системные эндпоинты (`/api`)
 
@@ -432,10 +433,10 @@ sequenceDiagram
 
     Client->>API: POST /api/prompts/sync (JWT Bearer, SyncPromptsPayloadDto)
     Note over Client,API: lastSyncTimestamp, created[], updated[], deletedIds[]
-    
+
     API->>API: Проверка FEATURE_CLOUD_SYNC и Zod-валидация
     API->>Service: syncPrompts(userId, payload)
-    
+
     rect rgb(240, 248, 255)
         Note over Service,DB: Шаг 1. Пакетное создание (Created)
         Service->>DB: promptModel.create({ clientTempId, ... })
@@ -466,7 +467,7 @@ sequenceDiagram
 
     Service-->>API: SyncPromptsResultDto (applied, serverChanges, syncTimestamp)
     API-->>Client: 200 OK (JSON)
-    
+
     rect rgb(245, 245, 245)
         Note over Client: Клиент заменяет clientTempId -> serverId,<br/>применяет serverChanges локально и<br/>сохраняет новый syncTimestamp
     end
@@ -480,10 +481,10 @@ sequenceDiagram
 
 ```typescript
 interface SyncPromptsPayloadDto {
-  lastSyncTimestamp?: string | null;  // ISO timestamp предыдущей синхронизации
-  created?: SyncPromptItemDto[];      // Промпты, созданные клиентом
-  updated?: SyncPromptItemDto[];      // Промпты, отредактированные клиентом
-  deletedIds?: string[];              // Идентификаторы удаленных клиентом промптов
+  lastSyncTimestamp?: string | null; // ISO timestamp предыдущей синхронизации
+  created?: SyncPromptItemDto[]; // Промпты, созданные клиентом
+  updated?: SyncPromptItemDto[]; // Промпты, отредактированные клиентом
+  deletedIds?: string[]; // Идентификаторы удаленных клиентом промптов
 }
 ```
 
@@ -511,9 +512,7 @@ interface SyncPromptsPayloadDto {
       "updatedAt": "2026-10-25T13:45:00.000Z"
     }
   ],
-  "deletedIds": [
-    "66a26d708309cf8fcf650b2c"
-  ]
+  "deletedIds": ["66a26d708309cf8fcf650b2c"]
 }
 ```
 
@@ -528,14 +527,14 @@ interface SyncPromptsResultDto {
       createdAt: Date;
       updatedAt: Date;
     }>;
-    updated: string[];     // Массив promptId, успешно обновленных на сервере
-    deleted: string[];     // Массив promptId, успешно помеченных удаленными
+    updated: string[]; // Массив promptId, успешно обновленных на сервере
+    deleted: string[]; // Массив promptId, успешно помеченных удаленными
   };
   serverChanges: {
-    prompts: IPrompt[];    // Изменения на сервере после lastSyncTimestamp
-    deletedIds: string[];  // ID промптов, удаленных на сервере
+    prompts: IPrompt[]; // Изменения на сервере после lastSyncTimestamp
+    deletedIds: string[]; // ID промптов, удаленных на сервере
   };
-  syncTimestamp: string;   // Текущий ISO timestamp сервера для следующего вызова
+  syncTimestamp: string; // Текущий ISO timestamp сервера для следующего вызова
 }
 ```
 
