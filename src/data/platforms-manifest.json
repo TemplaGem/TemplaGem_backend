@@ -108,6 +108,44 @@
         "attachTo": "container",
         "offset": { "x": 0, "y": 10 }
       }
+    },
+    {
+      "id": "deepseek",
+      "name": "DeepSeek",
+      "enabled": true,
+      "accentColor": "#4D6BFE",
+      "theme": {
+        "accentColor": "#4D6BFE"
+      },
+      "matches": ["https://chat.deepseek.com/*"],
+      "selectors": {
+        "input": [
+          "#chat-input",
+          "textarea#chat-input",
+          "textarea[placeholder*=\"DeepSeek\"]",
+          "textarea"
+        ],
+        "container": [
+          ".chat-input-container",
+          "[class*=\"chat-input\"]",
+          "[class*=\"input-box\"]",
+          "form"
+        ],
+        "submitButton": [
+          "div[role=\"button\"][aria-label*=\"Send\"]",
+          "button[aria-label*=\"Send\"]",
+          "div[class*=\"send-button\"]",
+          "button[type=\"submit\"]"
+        ]
+      },
+      "editor": {
+        "type": "textarea",
+        "insertStrategy": "inputEvent"
+      },
+      "popover": {
+        "attachTo": "container",
+        "offset": { "x": 0, "y": 10 }
+      }
     }
   ]
 }

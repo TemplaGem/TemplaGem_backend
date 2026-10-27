@@ -125,25 +125,68 @@ describe("Platforms Routes", () => {
               offset: { x: 0, y: 10 },
             },
           },
+          {
+            id: "deepseek",
+            name: "DeepSeek",
+            enabled: true,
+            accentColor: "#4D6BFE",
+            theme: {
+              accentColor: "#4D6BFE",
+            },
+            matches: ["https://chat.deepseek.com/*"],
+            selectors: {
+              input: [
+                "#chat-input",
+                "textarea#chat-input",
+                'textarea[placeholder*="DeepSeek"]',
+                "textarea",
+              ],
+              container: [
+                ".chat-input-container",
+                '[class*="chat-input"]',
+                '[class*="input-box"]',
+                "form",
+              ],
+              submitButton: [
+                'div[role="button"][aria-label*="Send"]',
+                'button[aria-label*="Send"]',
+                'div[class*="send-button"]',
+                'button[type="submit"]',
+              ],
+            },
+            editor: {
+              type: "textarea",
+              insertStrategy: "inputEvent",
+            },
+            popover: {
+              attachTo: "container",
+              offset: { x: 0, y: 10 },
+            },
+          },
         ],
       });
     });
 
-    it("should provide platform-specific accent colors (claude: orange, chatgpt: black, gemini: blue)", async () => {
+    it("should provide platform-specific accent colors (claude: orange, chatgpt: black, gemini: blue, deepseek: indigo/blue)", async () => {
       const res = await request(app).get("/api/v1/platforms/manifest");
       const { platforms } = res.body;
 
       const gemini = platforms.find((p: { id: string }) => p.id === "gemini");
       const chatgpt = platforms.find((p: { id: string }) => p.id === "chatgpt");
       const claude = platforms.find((p: { id: string }) => p.id === "claude");
+      const deepseek = platforms.find(
+        (p: { id: string }) => p.id === "deepseek",
+      );
 
       expect(gemini?.accentColor).toBe("#1A73E8");
       expect(chatgpt?.accentColor).toBe("#000000");
       expect(claude?.accentColor).toBe("#D97757");
+      expect(deepseek?.accentColor).toBe("#4D6BFE");
 
       expect(gemini?.theme?.accentColor).toBe("#1A73E8");
       expect(chatgpt?.theme?.accentColor).toBe("#000000");
       expect(claude?.theme?.accentColor).toBe("#D97757");
+      expect(deepseek?.theme?.accentColor).toBe("#4D6BFE");
     });
 
     it("should be accessible via /api/platforms/manifest alias as well", async () => {
@@ -153,6 +196,7 @@ describe("Platforms Routes", () => {
         "public, max-age=3600, stale-while-revalidate=86400",
       );
       expect(res.body.version).toBe(1);
+      expect(res.body.platforms).toHaveLength(4);
     });
   });
 });
