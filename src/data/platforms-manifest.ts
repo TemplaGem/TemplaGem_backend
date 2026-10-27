@@ -9,6 +9,10 @@ export const platformsManifest: PlatformsManifest = {
       id: "gemini",
       name: "Google Gemini",
       enabled: true,
+      accentColor: "#1A73E8",
+      theme: {
+        accentColor: "#1A73E8",
+      },
       matches: ["https://gemini.google.com/*"],
       selectors: {
         input: [
@@ -41,6 +45,10 @@ export const platformsManifest: PlatformsManifest = {
       id: "chatgpt",
       name: "ChatGPT",
       enabled: true,
+      accentColor: "#000000",
+      theme: {
+        accentColor: "#000000",
+      },
       matches: ["https://chatgpt.com/*", "https://chat.openai.com/*"],
       selectors: {
         input: [
@@ -69,6 +77,10 @@ export const platformsManifest: PlatformsManifest = {
       id: "claude",
       name: "Anthropic Claude",
       enabled: true,
+      accentColor: "#D97757",
+      theme: {
+        accentColor: "#D97757",
+      },
       matches: ["https://claude.ai/*"],
       selectors: {
         input: [

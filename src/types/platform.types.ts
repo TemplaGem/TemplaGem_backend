@@ -17,10 +17,16 @@ export interface PlatformPopover {
   };
 }
 
+export interface PlatformTheme {
+  accentColor: string;
+}
+
 export interface PlatformConfig {
   id: string;
   name: string;
   enabled: boolean;
+  accentColor: string;
+  theme?: PlatformTheme;
   matches: string[];
   selectors: PlatformSelectors;
   editor: PlatformEditor;

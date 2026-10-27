@@ -309,6 +309,13 @@ export const swaggerDocument = {
           id: { type: "string", example: "gemini" },
           name: { type: "string", example: "Google Gemini" },
           enabled: { type: "boolean", example: true },
+          accentColor: { type: "string", example: "#1A73E8" },
+          theme: {
+            type: "object",
+            properties: {
+              accentColor: { type: "string", example: "#1A73E8" },
+            },
+          },
           matches: {
             type: "array",
             items: { type: "string" },

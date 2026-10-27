@@ -23,6 +23,10 @@ describe("Platforms Routes", () => {
             id: "gemini",
             name: "Google Gemini",
             enabled: true,
+            accentColor: "#1A73E8",
+            theme: {
+              accentColor: "#1A73E8",
+            },
             matches: ["https://gemini.google.com/*"],
             selectors: {
               input: [
@@ -55,6 +59,10 @@ describe("Platforms Routes", () => {
             id: "chatgpt",
             name: "ChatGPT",
             enabled: true,
+            accentColor: "#000000",
+            theme: {
+              accentColor: "#000000",
+            },
             matches: ["https://chatgpt.com/*", "https://chat.openai.com/*"],
             selectors: {
               input: [
@@ -87,6 +95,10 @@ describe("Platforms Routes", () => {
             id: "claude",
             name: "Anthropic Claude",
             enabled: true,
+            accentColor: "#D97757",
+            theme: {
+              accentColor: "#D97757",
+            },
             matches: ["https://claude.ai/*"],
             selectors: {
               input: [
@@ -115,6 +127,23 @@ describe("Platforms Routes", () => {
           },
         ],
       });
+    });
+
+    it("should provide platform-specific accent colors (claude: orange, chatgpt: black, gemini: blue)", async () => {
+      const res = await request(app).get("/api/v1/platforms/manifest");
+      const { platforms } = res.body;
+
+      const gemini = platforms.find((p: { id: string }) => p.id === "gemini");
+      const chatgpt = platforms.find((p: { id: string }) => p.id === "chatgpt");
+      const claude = platforms.find((p: { id: string }) => p.id === "claude");
+
+      expect(gemini?.accentColor).toBe("#1A73E8");
+      expect(chatgpt?.accentColor).toBe("#000000");
+      expect(claude?.accentColor).toBe("#D97757");
+
+      expect(gemini?.theme?.accentColor).toBe("#1A73E8");
+      expect(chatgpt?.theme?.accentColor).toBe("#000000");
+      expect(claude?.theme?.accentColor).toBe("#D97757");
     });
 
     it("should be accessible via /api/platforms/manifest alias as well", async () => {
