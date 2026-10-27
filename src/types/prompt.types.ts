@@ -57,6 +57,8 @@ export interface IPrompt {
   downloads?: number | undefined;
   access?: accessType | undefined;
   deletedAt?: Date | null | undefined;
+  clientUpdatedAt?: Date | undefined;
+  serverUpdatedAt?: Date | undefined;
   createdAt?: Date | undefined;
   updatedAt?: Date | undefined;
 }

@@ -244,6 +244,8 @@ erDiagram
         number downloads "Количество скачиваний"
         string access "Уровень доступа: public, private или link"
         date deletedAt "Метка мягкого удаления (Tombstone)"
+        date clientUpdatedAt "Метка времени клиентского редактирования для LWW"
+        date serverUpdatedAt "Метка времени серверной фиксации для дельты синхронизации"
         date createdAt "Метка времени создания"
         date updatedAt "Метка времени последнего обновления"
     }

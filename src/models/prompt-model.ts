@@ -13,6 +13,8 @@ export interface IPromptDocument extends Document {
   downloads: number;
   access: accessType;
   deletedAt?: Date | null | undefined;
+  clientUpdatedAt?: Date | undefined;
+  serverUpdatedAt: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,10 +41,23 @@ export const promptSchema = new Schema<IPromptDocument>(
       default: "private",
     },
     deletedAt: { type: Date, default: null, index: true },
+    clientUpdatedAt: { type: Date, default: null },
+    serverUpdatedAt: { type: Date, default: Date.now, index: true },
   },
   { timestamps: true },
 );
 
-promptSchema.index({ createdBy: 1, updatedAt: 1 });
+// User-scoped unique index for idempotent creation by clientTempId
+promptSchema.index(
+  { createdBy: 1, clientTempId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      clientTempId: { $type: "string", $gt: "" },
+    },
+  },
+);
+
+promptSchema.index({ createdBy: 1, serverUpdatedAt: 1 });
 
 export const promptModel = model<IPromptDocument>("PromptModel", promptSchema);

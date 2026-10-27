@@ -26,7 +26,12 @@ const tagsSchema = z
   )
   .max(10, "A prompt can have at most 10 tags");
 
-const iconSchema = z.string().trim().min(1, "Icon cannot be empty");
+const nonEmptyIconSchema = z.string().trim().min(1, "Icon cannot be empty");
+
+const iconSchema = z
+  .string()
+  .trim()
+  .max(100, "Icon must be at most 100 characters long");
 
 export const createPromptSchema = z.object({
   title: titleSchema,
@@ -52,7 +57,7 @@ export const updatePromptTagsSchema = z.object({
 
 export const updatePromptIconSchema = z.object({
   promptId: promptIdSchema,
-  icon: iconSchema,
+  icon: nonEmptyIconSchema,
 });
 
 export const deletePromptSchema = z.object({

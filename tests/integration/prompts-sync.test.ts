@@ -203,4 +203,123 @@ describe("Prompts Sync Route (/api/prompts/sync)", () => {
       "Server Modified Prompt",
     );
   });
+
+  it("should return offline-created prompts in serverChanges when uploaded after another device cursor", async () => {
+    const token = await getAuthToken();
+    const deviceBCursor = new Date().toISOString();
+
+    // Device A uploads an offline prompt with createdAt and updatedAt in the past (e.g. yesterday)
+    const yesterday = new Date(Date.now() - 86400000).toISOString();
+    const syncResA = await request(app)
+      .post("/api/prompts/sync")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        created: [
+          {
+            clientTempId: "temp-yesterday-1",
+            title: "Offline Prompt from Yesterday",
+            body: "Created offline yesterday",
+            createdAt: yesterday,
+            updatedAt: yesterday,
+          },
+        ],
+      });
+    expect(syncResA.status).toBe(200);
+    expect(syncResA.body.applied.created).toHaveLength(1);
+
+    // Device B syncs using its previous cursor (deviceBCursor)
+    const syncResB = await request(app)
+      .post("/api/prompts/sync")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        lastSyncTimestamp: deviceBCursor,
+        created: [],
+        updated: [],
+        deletedIds: [],
+      });
+
+    expect(syncResB.status).toBe(200);
+    // Even though the prompt has past createdAt/updatedAt, serverUpdatedAt is recent, so Device B receives it
+    expect(syncResB.body.serverChanges.prompts).toHaveLength(1);
+    expect(syncResB.body.serverChanges.prompts[0].title).toBe(
+      "Offline Prompt from Yesterday",
+    );
+  });
+
+  it("should be idempotent on creation retry with same clientTempId", async () => {
+    const token = await getAuthToken();
+    const clientTempId = "retry-id-123";
+
+    const payload = {
+      created: [
+        {
+          clientTempId,
+          title: "Idempotent Prompt",
+          body: "Checking retries",
+        },
+      ],
+    };
+
+    // First attempt
+    const res1 = await request(app)
+      .post("/api/prompts/sync")
+      .set("Authorization", `Bearer ${token}`)
+      .send(payload);
+    expect(res1.status).toBe(200);
+    expect(res1.body.applied.created).toHaveLength(1);
+    const serverId1 = res1.body.applied.created[0].serverId;
+
+    // Retry with identical clientTempId
+    const res2 = await request(app)
+      .post("/api/prompts/sync")
+      .set("Authorization", `Bearer ${token}`)
+      .send(payload);
+    expect(res2.status).toBe(200);
+    expect(res2.body.applied.created).toHaveLength(1);
+    const serverId2 = res2.body.applied.created[0].serverId;
+
+    // Must return the exact same serverId and not create a duplicate document
+    expect(serverId2).toBe(serverId1);
+
+    const prompts = await promptModel.find({ clientTempId });
+    expect(prompts).toHaveLength(1);
+  });
+
+  it("should accept empty string for icon in sync payload", async () => {
+    const token = await getAuthToken();
+
+    // Create prompt with default icon
+    const createRes = await request(app)
+      .post("/api/prompts/create")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        title: "Prompt with Default Icon",
+        body: "Body text",
+        tags: ["icon-test"],
+      });
+    expect(createRes.status).toBe(201);
+
+    const getRes = await request(app)
+      .get("/api/prompts")
+      .set("Authorization", `Bearer ${token}`);
+    const promptId = getRes.body.prompts[0]._id;
+
+    // Client sends update with icon: ""
+    const syncRes = await request(app)
+      .post("/api/prompts/sync")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        updated: [
+          {
+            promptId,
+            title: "Updated Title with Empty Icon",
+            body: "Body text",
+            icon: "",
+          },
+        ],
+      });
+
+    expect(syncRes.status).toBe(200);
+    expect(syncRes.body.applied.updated).toContain(promptId);
+  });
 });
