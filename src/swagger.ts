@@ -303,9 +303,106 @@ export const swaggerDocument = {
           },
         },
       },
+      PlatformItem: {
+        type: "object",
+        properties: {
+          id: { type: "string", example: "gemini" },
+          name: { type: "string", example: "Google Gemini" },
+          enabled: { type: "boolean", example: true },
+          matches: {
+            type: "array",
+            items: { type: "string" },
+            example: ["https://gemini.google.com/*"],
+          },
+          selectors: {
+            type: "object",
+            properties: {
+              input: {
+                type: "array",
+                items: { type: "string" },
+              },
+              container: {
+                type: "array",
+                items: { type: "string" },
+              },
+              submitButton: {
+                type: "array",
+                items: { type: "string" },
+              },
+            },
+          },
+          editor: {
+            type: "object",
+            properties: {
+              type: { type: "string", example: "quill" },
+              insertStrategy: { type: "string", example: "execCommand" },
+            },
+          },
+          popover: {
+            type: "object",
+            properties: {
+              attachTo: { type: "string", example: "container" },
+              offset: {
+                type: "object",
+                properties: {
+                  x: { type: "number", example: 0 },
+                  y: { type: "number", example: 8 },
+                },
+              },
+            },
+          },
+        },
+      },
+      PlatformsManifestResponse: {
+        type: "object",
+        properties: {
+          version: { type: "integer", example: 1 },
+          updatedAt: {
+            type: "string",
+            format: "date-time",
+            example: "2026-10-27T12:00:00Z",
+          },
+          ttlMinutes: { type: "integer", example: 60 },
+          platforms: {
+            type: "array",
+            items: {
+              $ref: "#/components/schemas/PlatformItem",
+            },
+          },
+        },
+      },
     },
   },
   paths: {
+    "/api/v1/platforms/manifest": {
+      get: {
+        tags: ["Platforms"],
+        summary: "Get platforms manifest configuration",
+        description:
+          "Public endpoint returning supported platforms manifest for extension injection with caching headers",
+        responses: {
+          200: {
+            description: "Platforms manifest retrieved successfully",
+            headers: {
+              "Cache-Control": {
+                schema: {
+                  type: "string",
+                  example: "public, max-age=3600, stale-while-revalidate=86400",
+                },
+                description: "Caching policy directives",
+              },
+            },
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/PlatformsManifestResponse",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     "/api/auth/register": {
       post: {
         tags: ["Auth"],

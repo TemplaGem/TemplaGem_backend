@@ -6,6 +6,7 @@ import { httpLogger, logger } from "./utils/loggers.ts";
 import usersRouter from "./routes/users.ts";
 import promptsRouter from "./routes/prompts.ts";
 import authRouter from "./routes/auth.ts";
+import platformsRouter from "./routes/platforms.ts";
 import swaggerUi from "swagger-ui-express";
 import { swaggerDocument } from "./swagger.ts";
 
@@ -46,6 +47,8 @@ export const createApp = (): express.Express => {
   app.use("/api/users", usersRouter);
   app.use("/api/prompts", promptsRouter);
   app.use("/api/auth", authRouter);
+  app.use("/api/v1/platforms", platformsRouter);
+  app.use("/api/platforms", platformsRouter);
 
   // 404 Handler
   app.use((req, res) => {
