@@ -46,17 +46,60 @@ export interface DeletePromptDto {
 }
 
 export interface IPrompt {
-  _id?: Types.ObjectId | string;
-  createdBy?: Types.ObjectId | string;
+  _id?: Types.ObjectId | string | undefined;
+  createdBy?: Types.ObjectId | string | undefined;
+  clientTempId?: string | undefined;
   title: string;
   body: string;
-  icon?: string;
+  icon?: string | undefined;
   tags: string[];
-  likes?: number;
-  downloads?: number;
-  access?: accessType;
-  createdAt?: Date;
-  updatedAt?: Date;
+  likes?: number | undefined;
+  downloads?: number | undefined;
+  access?: accessType | undefined;
+  deletedAt?: Date | null | undefined;
+  clientUpdatedAt?: Date | undefined;
+  serverUpdatedAt?: Date | undefined;
+  createdAt?: Date | undefined;
+  updatedAt?: Date | undefined;
+}
+
+export interface SyncPromptItemDto {
+  clientTempId?: string | undefined;
+  promptId?: string | undefined;
+  title: string;
+  body: string;
+  tags?: string[] | undefined;
+  icon?: string | undefined;
+  access?: accessType | undefined;
+  createdAt?: string | Date | undefined;
+  updatedAt?: string | Date | undefined;
+}
+
+export interface SyncPromptsPayloadDto {
+  lastSyncTimestamp?: string | null | undefined;
+  created?: SyncPromptItemDto[] | undefined;
+  updated?: SyncPromptItemDto[] | undefined;
+  deletedIds?: string[] | undefined;
+}
+
+export interface SyncCreatedResultItem {
+  clientTempId?: string | undefined;
+  serverId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface SyncPromptsResultDto {
+  applied: {
+    created: SyncCreatedResultItem[];
+    updated: string[];
+    deleted: string[];
+  };
+  serverChanges: {
+    prompts: IPrompt[];
+    deletedIds: string[];
+  };
+  syncTimestamp: string;
 }
 
 // Backwards-compatible aliases for legacy imports if any

@@ -26,12 +26,17 @@ const tagsSchema = z
   )
   .max(10, "A prompt can have at most 10 tags");
 
-const iconSchema = z.string().trim().min(1, "Icon cannot be empty");
+const nonEmptyIconSchema = z.string().trim().min(1, "Icon cannot be empty");
+
+const iconSchema = z
+  .string()
+  .trim()
+  .max(100, "Icon must be at most 100 characters long");
 
 export const createPromptSchema = z.object({
   title: titleSchema,
   body: bodySchema,
-  tags: tagsSchema,
+  tags: tagsSchema.optional().default([]),
   icon: iconSchema.optional(),
 });
 
@@ -52,9 +57,40 @@ export const updatePromptTagsSchema = z.object({
 
 export const updatePromptIconSchema = z.object({
   promptId: promptIdSchema,
-  icon: iconSchema,
+  icon: nonEmptyIconSchema,
 });
 
 export const deletePromptSchema = z.object({
   promptId: promptIdSchema,
+});
+
+export const syncPromptItemSchema = z.object({
+  clientTempId: z.string().trim().min(1).optional(),
+  promptId: promptIdSchema.optional(),
+  title: titleSchema,
+  body: bodySchema,
+  tags: tagsSchema.optional(),
+  icon: iconSchema.optional(),
+  access: z.enum(["public", "private", "link"]).optional(),
+  createdAt: z.string().datetime().optional(),
+  updatedAt: z.string().datetime().optional(),
+});
+
+export const syncPromptsSchema = z.object({
+  lastSyncTimestamp: z.string().datetime().nullable().optional(),
+  created: z
+    .array(syncPromptItemSchema)
+    .max(250, "Batch cannot exceed 250 created items")
+    .optional()
+    .default([]),
+  updated: z
+    .array(syncPromptItemSchema)
+    .max(250, "Batch cannot exceed 250 updated items")
+    .optional()
+    .default([]),
+  deletedIds: z
+    .array(promptIdSchema)
+    .max(500, "Batch cannot exceed 500 deleted IDs")
+    .optional()
+    .default([]),
 });
