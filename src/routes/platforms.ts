@@ -1,7 +1,9 @@
 import { Router } from "express";
-import { platformsManifest } from "../data/platforms-manifest.ts";
+import platformsManifestJson from "../data/platforms-manifest.json" with { type: "json" };
+import type { PlatformsManifest } from "../types/platform.types.ts";
 
 const platformsRouter: Router = Router();
+const platformsManifest = platformsManifestJson as PlatformsManifest;
 
 platformsRouter.get("/manifest", (_req, res) => {
   res.setHeader(

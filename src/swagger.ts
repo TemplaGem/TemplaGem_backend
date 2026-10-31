@@ -309,9 +309,16 @@ export const swaggerDocument = {
           id: { type: "string", example: "gemini" },
           name: { type: "string", example: "Google Gemini" },
           enabled: { type: "boolean", example: true },
-          accentColor: { type: "string", example: "#1A73E8" },
+          accentColor: {
+            type: "string",
+            description:
+              "Preferred canonical accent color hex code for UI theming",
+            example: "#1A73E8",
+          },
           theme: {
             type: "object",
+            description:
+              "Optional theme configuration (theme.accentColor mirrors accentColor for compatibility)",
             properties: {
               accentColor: { type: "string", example: "#1A73E8" },
             },
@@ -386,7 +393,36 @@ export const swaggerDocument = {
         tags: ["Platforms"],
         summary: "Get platforms manifest configuration",
         description:
-          "Public endpoint returning supported platforms manifest for extension injection with caching headers",
+          "Public endpoint returning supported platforms manifest for extension injection with caching headers. Also accessible via unversioned convenience alias /api/platforms/manifest.",
+        responses: {
+          200: {
+            description: "Platforms manifest retrieved successfully",
+            headers: {
+              "Cache-Control": {
+                schema: {
+                  type: "string",
+                  example: "public, max-age=3600, stale-while-revalidate=86400",
+                },
+                description: "Caching policy directives",
+              },
+            },
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/PlatformsManifestResponse",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/api/platforms/manifest": {
+      get: {
+        tags: ["Platforms"],
+        summary: "Get platforms manifest configuration (alias)",
+        description:
+          "Unversioned alias for /api/v1/platforms/manifest. Public endpoint returning supported platforms manifest for extension injection with caching headers.",
         responses: {
           200: {
             description: "Platforms manifest retrieved successfully",

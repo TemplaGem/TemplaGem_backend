@@ -1,5 +1,6 @@
 import request from "supertest";
 import { createApp } from "../../src/app.ts";
+import platformsManifest from "../../src/data/platforms-manifest.json" with { type: "json" };
 
 const app = createApp();
 
@@ -14,160 +15,50 @@ describe("Platforms Routes", () => {
         "public, max-age=3600, stale-while-revalidate=86400",
       );
 
-      expect(res.body).toEqual({
-        version: 1,
-        updatedAt: "2026-10-27T12:00:00Z",
-        ttlMinutes: 60,
-        platforms: [
-          {
-            id: "gemini",
-            name: "Google Gemini",
-            enabled: true,
-            accentColor: "#1A73E8",
-            theme: {
-              accentColor: "#1A73E8",
-            },
-            matches: ["https://gemini.google.com/*"],
-            selectors: {
-              input: [
-                '.ql-editor[contenteditable="true"]',
-                'rich-textarea [contenteditable="true"]',
-                'div[role="textbox"][contenteditable="true"]',
-              ],
-              container: [
-                ".input-area-container",
-                ".chat-input-container",
-                '[class*="input-area"]',
-                "form",
-              ],
-              submitButton: [
-                'button[aria-label*="Send"]',
-                "button.send-button",
-                'button[type="submit"]',
-              ],
-            },
-            editor: {
-              type: "quill",
-              insertStrategy: "execCommand",
-            },
-            popover: {
-              attachTo: "container",
-              offset: { x: 0, y: 8 },
-            },
-          },
-          {
-            id: "chatgpt",
-            name: "ChatGPT",
-            enabled: true,
-            accentColor: "#000000",
-            theme: {
-              accentColor: "#000000",
-            },
-            matches: ["https://chatgpt.com/*", "https://chat.openai.com/*"],
-            selectors: {
-              input: [
-                "#prompt-textarea",
-                'div[contenteditable="true"][id="prompt-textarea"]',
-                'div.ProseMirror[contenteditable="true"]',
-                "textarea#prompt-textarea",
-              ],
-              container: [
-                'form[class*="stretch"]',
-                'div[class*="composer"]',
-                "form",
-              ],
-              submitButton: [
-                'button[data-testid="send-button"]',
-                'button[aria-label="Send prompt"]',
-                'button[type="submit"]',
-              ],
-            },
-            editor: {
-              type: "prosemirror",
-              insertStrategy: "inputEvent",
-            },
-            popover: {
-              attachTo: "container",
-              offset: { x: 0, y: 12 },
-            },
-          },
-          {
-            id: "claude",
-            name: "Anthropic Claude",
-            enabled: true,
-            accentColor: "#D97757",
-            theme: {
-              accentColor: "#D97757",
-            },
-            matches: ["https://claude.ai/*"],
-            selectors: {
-              input: [
-                'div.ProseMirror[contenteditable="true"]',
-                'fieldset div[contenteditable="true"]',
-                'div[role="textbox"][contenteditable="true"]',
-              ],
-              container: [
-                'div[class*="composer"]',
-                "fieldset",
-                'div[class*="input-container"]',
-              ],
-              submitButton: [
-                'button[aria-label*="Send"]',
-                'button[type="submit"]',
-              ],
-            },
-            editor: {
-              type: "prosemirror",
-              insertStrategy: "inputEvent",
-            },
-            popover: {
-              attachTo: "container",
-              offset: { x: 0, y: 10 },
-            },
-          },
-          {
-            id: "deepseek",
-            name: "DeepSeek",
-            enabled: true,
-            accentColor: "#4D6BFE",
-            theme: {
-              accentColor: "#4D6BFE",
-            },
-            matches: ["https://chat.deepseek.com/*"],
-            selectors: {
-              input: [
-                "#chat-input",
-                "textarea#chat-input",
-                'textarea[placeholder*="DeepSeek"]',
-                "textarea",
-              ],
-              container: [
-                ".chat-input-container",
-                '[class*="chat-input"]',
-                '[class*="input-box"]',
-                "form",
-              ],
-              submitButton: [
-                'div[role="button"][aria-label*="Send"]',
-                'button[aria-label*="Send"]',
-                'div[class*="send-button"]',
-                'button[type="submit"]',
-              ],
-            },
-            editor: {
-              type: "textarea",
-              insertStrategy: "inputEvent",
-            },
-            popover: {
-              attachTo: "container",
-              offset: { x: 0, y: 10 },
-            },
-          },
-        ],
-      });
+      // Verify the endpoint serves the manifest reference directly from platforms-manifest.json
+      expect(res.body).toEqual(platformsManifest);
     });
 
-    it("should provide platform-specific accent colors (claude: orange, chatgpt: black, gemini: blue, deepseek: indigo/blue)", async () => {
+    it("should conform to the manifest contract schema", async () => {
+      const res = await request(app).get("/api/v1/platforms/manifest");
+
+      expect(res.body).toMatchObject({
+        version: expect.any(Number),
+        updatedAt: expect.any(String),
+        ttlMinutes: expect.any(Number),
+      });
+
+      expect(Array.isArray(res.body.platforms)).toBe(true);
+      expect(res.body.platforms).toHaveLength(4);
+
+      for (const platform of res.body.platforms) {
+        expect(platform).toMatchObject({
+          id: expect.any(String),
+          name: expect.any(String),
+          enabled: expect.any(Boolean),
+          accentColor: expect.stringMatching(/^#[0-9A-Fa-f]{6}$/),
+          matches: expect.any(Array),
+          selectors: {
+            input: expect.any(Array),
+            container: expect.any(Array),
+            submitButton: expect.any(Array),
+          },
+          editor: {
+            type: expect.any(String),
+            insertStrategy: expect.any(String),
+          },
+          popover: {
+            attachTo: expect.any(String),
+            offset: {
+              x: expect.any(Number),
+              y: expect.any(Number),
+            },
+          },
+        });
+      }
+    });
+
+    it("should provide platform-specific accent colors (claude: orange, chatgpt: black, gemini: blue, deepseek: indigo)", async () => {
       const res = await request(app).get("/api/v1/platforms/manifest");
       const { platforms } = res.body;
 
@@ -183,10 +74,11 @@ describe("Platforms Routes", () => {
       expect(claude?.accentColor).toBe("#D97757");
       expect(deepseek?.accentColor).toBe("#4D6BFE");
 
-      expect(gemini?.theme?.accentColor).toBe("#1A73E8");
-      expect(chatgpt?.theme?.accentColor).toBe("#000000");
-      expect(claude?.theme?.accentColor).toBe("#D97757");
-      expect(deepseek?.theme?.accentColor).toBe("#4D6BFE");
+      // Verify theme.accentColor mirrors the primary accentColor
+      expect(gemini?.theme?.accentColor).toBe(gemini?.accentColor);
+      expect(chatgpt?.theme?.accentColor).toBe(chatgpt?.accentColor);
+      expect(claude?.theme?.accentColor).toBe(claude?.accentColor);
+      expect(deepseek?.theme?.accentColor).toBe(deepseek?.accentColor);
     });
 
     it("should be accessible via /api/platforms/manifest alias as well", async () => {
@@ -195,8 +87,7 @@ describe("Platforms Routes", () => {
       expect(res.headers["cache-control"]).toBe(
         "public, max-age=3600, stale-while-revalidate=86400",
       );
-      expect(res.body.version).toBe(1);
-      expect(res.body.platforms).toHaveLength(4);
+      expect(res.body).toEqual(platformsManifest);
     });
   });
 });
