@@ -22,10 +22,13 @@
 src/
 ├── index.ts               # Точка входа приложения
 ├── app.ts                 # Конфигурация Express, middleware, CORS, Swagger
+├── data/                  # Статические конфигурационные данные
+│   └── platforms-manifest.json # Манифест поддерживаемых платформ (Single Source of Truth)
 ├── routes/                # HTTP-роутеры и обработчики эндпоинтов
 │   ├── auth.ts            # Роуты регистрации, логина, рефреша, логаута
 │   ├── users.ts           # Роуты управления профилями пользователей
-│   └── prompts.ts         # Роуты CRUD операций над промптами
+│   ├── prompts.ts         # Роуты CRUD операций над промптами
+│   └── platforms.ts       # Публичный роут манифеста платформ (/manifest)
 ├── services/              # Слой бизнес-логики
 │   ├── user.service.ts    # Сервис работы с пользователями (создание, пароли, удаление)
 │   └── prompt.services.ts # Сервис промптов (создание, обновление, удаление)
@@ -34,7 +37,8 @@ src/
 │   └── prompt-model.ts    # Модель PromptModel
 ├── types/                 # TypeScript интерфейсы и DTO
 │   ├── user.types.ts      # Типы пользователя, JWT payload
-│   └── prompt.types.ts    # Типы промптов и входные DTO сервисов
+│   ├── prompt.types.ts    # Типы промптов и входные DTO сервисов
+│   └── platform.types.ts  # Типы манифеста платформ, селекторов и тем
 ├── validation/            # Схемы валидации запросов через Zod
 │   ├── user-validation.ts # Валидация логина, паролей, email
 │   └── prompt-validation.ts # Валидация заголовков, тегов, иконок, доступа
@@ -368,7 +372,33 @@ erDiagram
 | `DELETE` | `/api/prompts/delete`        | Bearer | Удаление конкретного промпта                  | `{ promptId }`                          | `200 OK` `{ message }`        |
 | `DELETE` | `/api/prompts/delete/all`    | Bearer | Удаление всех промптов пользователя           | —                                       | `200 OK` `{ message }`        |
 
-### 6.4. Системные эндпоинты (`/api`)
+### 6.4. Платформы (`/api/v1/platforms` & `/api/platforms`)
+
+| Метод | Путь                                                                 | Auth            | Описание                                                                                                                                         | Заголовки ответа                                                    | Ответ                                                           |
+| :---- | :------------------------------------------------------------------- | :-------------- | :----------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------ | :-------------------------------------------------------------- |
+| `GET` | `/api/v1/platforms/manifest`<br>_(алиас: `/api/platforms/manifest`)_ | Нет (публичный) | Манифест конфигурации поддерживаемых ИИ-платформ (Gemini, ChatGPT, Claude, DeepSeek) с селекторами DOM, стратегиями вставки и акцентными цветами | `Cache-Control: public, max-age=3600, stale-while-revalidate=86400` | `200 OK` `{ version, updatedAt, ttlMinutes, platforms: [...] }` |
+
+#### 6.4.1. Архитектура и контракт Platforms Manifest
+
+- **Single Source of Truth:** Конфигурация хранится исключительно в `src/data/platforms-manifest.json` и импортируется в Express роутер напрямую (`import ... with { type: "json" }`).
+- **HTTP-кэширование:** Эндпоинт отдает директивы `Cache-Control: public, max-age=3600, stale-while-revalidate=86400`, что снижает нагрузку на бэкенд и ускоряет работу расширения.
+- **Поддерживаемые платформы и адаптивная тема:**
+  - **Google Gemini** (`https://gemini.google.com/*`): акцентный цвет `#1A73E8` (синий), селекторы `.ql-editor`, `rich-textarea`, редактор `quill` (`execCommand`).
+  - **ChatGPT** (`https://chatgpt.com/*`, `https://chat.openai.com/*`): акцентный цвет `#000000` (черный), селекторы `#prompt-textarea`, `div.ProseMirror`, редактор `prosemirror` (`inputEvent`).
+  - **Anthropic Claude** (`https://claude.ai/*`): акцентный цвет `#D97757` (терракотовый/оранжевый), селекторы `div.ProseMirror`, редактор `prosemirror` (`inputEvent`).
+  - **DeepSeek** (`https://chat.deepseek.com/*`): акцентный цвет `#4D6BFE` (индиго/синий), селекторы `#chat-input`, `textarea`, редактор `textarea` (`inputEvent`).
+- **Схема PlatformConfig (`src/types/platform.types.ts`):**
+  - `id`: уникальный строковый ключ платформы.
+  - `name`: читаемое имя платформы.
+  - `enabled`: флаг доступности инъекции.
+  - `accentColor`: основной канонический hex-код цвета для динамической стилизации UI расширения.
+  - `theme`: объект темы (`theme.accentColor` дублирует `accentColor` для клиентской совместимости).
+  - `matches`: массив URL-шаблонов для распознавания страницы.
+  - `selectors`: DOM-селекторы (`input`, `container`, `submitButton`).
+  - `editor`: тип поля ввода и стратегия вставки текста (`quill`, `prosemirror`, `textarea`).
+  - `popover`: точка привязки и оффсет позиционирования оверлея TemplaGem (`attachTo`, `offset: { x, y }`).
+
+### 6.5. Системные эндпоинты (`/api`)
 
 | Метод | Путь          | Auth | Описание                                 | Ответ                                                 |
 | :---- | :------------ | :--- | :--------------------------------------- | :---------------------------------------------------- |
