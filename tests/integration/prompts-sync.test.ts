@@ -322,4 +322,190 @@ describe("Prompts Sync Route (/api/prompts/sync)", () => {
     expect(syncRes.status).toBe(200);
     expect(syncRes.body.applied.updated).toContain(promptId);
   });
+
+  it("should not overwrite newer web edit with older offline sync edit", async () => {
+    const token = await getAuthToken();
+
+    // 1. Client creates prompt via sync with an earlier timestamp
+    const syncRes1 = await request(app)
+      .post("/api/prompts/sync")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        created: [
+          {
+            clientTempId: "lww-test-1",
+            title: "Original Title",
+            body: "Original Body",
+            createdAt: "2026-01-01T10:00:00.000Z",
+            updatedAt: "2026-01-01T10:00:00.000Z",
+          },
+        ],
+      });
+    expect(syncRes1.status).toBe(200);
+    const promptId = syncRes1.body.applied.created[0].serverId;
+
+    // 2. User updates the title via regular web endpoint today (e.g. 12:00)
+    const updateRes = await request(app)
+      .patch("/api/prompts/change/title")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        promptId,
+        title: "Fresh Web Title",
+      });
+    expect(updateRes.status).toBe(200);
+
+    // 3. Client comes online later with an offline edit dated 10:30 (older than fresh web edit)
+    const syncRes2 = await request(app)
+      .post("/api/prompts/sync")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        updated: [
+          {
+            promptId,
+            title: "Stale Offline Title from 10:30",
+            body: "Stale Body",
+            updatedAt: "2026-01-01T10:30:00.000Z",
+          },
+        ],
+      });
+    expect(syncRes2.status).toBe(200);
+    // Should NOT be applied because the web edit is newer
+    expect(syncRes2.body.applied.updated).not.toContain(promptId);
+
+    const promptInDb = await promptModel.findById(promptId);
+    expect(promptInDb?.title).toBe("Fresh Web Title");
+  });
+
+  it("should return legacy prompts lacking serverUpdatedAt in initial sync", async () => {
+    const token = await getAuthToken();
+    const dbUser = await userModel.findOne({ email: user.email });
+
+    // Directly insert a legacy prompt into DB without serverUpdatedAt
+    await promptModel.collection.insertOne({
+      createdBy: dbUser!._id,
+      title: "Legacy Prompt Without serverUpdatedAt",
+      body: "Legacy Content",
+      tags: [],
+      icon: "",
+      access: "private",
+      likes: 0,
+      downloads: 0,
+      deletedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const syncRes = await request(app)
+      .post("/api/prompts/sync")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        lastSyncTimestamp: null,
+      });
+
+    expect(syncRes.status).toBe(200);
+    const promptTitles = syncRes.body.serverChanges.prompts.map(
+      (p: { title: string }) => p.title,
+    );
+    expect(promptTitles).toContain("Legacy Prompt Without serverUpdatedAt");
+  });
+
+  it("should not echo back newly created items in subsequent sync with returned cursor", async () => {
+    const token = await getAuthToken();
+
+    // 1. Sync creates a new prompt
+    const syncRes1 = await request(app)
+      .post("/api/prompts/sync")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        lastSyncTimestamp: null,
+        created: [
+          {
+            clientTempId: "echo-check-1",
+            title: "Echo Check Prompt",
+            body: "Echo Check Body",
+          },
+        ],
+      });
+
+    expect(syncRes1.status).toBe(200);
+    expect(syncRes1.body.applied.created).toHaveLength(1);
+    const cursor = syncRes1.body.syncTimestamp;
+
+    // 2. Next sync using the exact returned cursor
+    const syncRes2 = await request(app)
+      .post("/api/prompts/sync")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        lastSyncTimestamp: cursor,
+      });
+
+    expect(syncRes2.status).toBe(200);
+    // Must NOT echo the item back as a serverChange
+    expect(syncRes2.body.serverChanges.prompts).toHaveLength(0);
+  });
+
+  it("should allow re-creating prompt with same clientTempId after previous was soft-deleted", async () => {
+    const token = await getAuthToken();
+    const tempId = "soft-delete-reuse-1";
+
+    // 1. Create prompt
+    const res1 = await request(app)
+      .post("/api/prompts/sync")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        created: [{ clientTempId: tempId, title: "Version 1", body: "Body 1" }],
+      });
+    expect(res1.status).toBe(200);
+    const serverId1 = res1.body.applied.created[0].serverId;
+
+    // 2. Soft delete the prompt
+    const deleteRes = await request(app)
+      .post("/api/prompts/sync")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        deletedIds: [serverId1],
+      });
+    expect(deleteRes.status).toBe(200);
+
+    // 3. Create a new prompt with the same clientTempId
+    const res2 = await request(app)
+      .post("/api/prompts/sync")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        created: [
+          {
+            clientTempId: tempId,
+            title: "Version 2 Recreated",
+            body: "Body 2",
+          },
+        ],
+      });
+    expect(res2.status).toBe(200);
+    expect(res2.body.applied.created).toHaveLength(1);
+    const serverId2 = res2.body.applied.created[0].serverId;
+
+    // Should create a new active prompt instead of failing or reusing the soft-deleted one
+    expect(serverId2).not.toBe(serverId1);
+
+    const activePrompt = await promptModel.findById(serverId2);
+    expect(activePrompt?.title).toBe("Version 2 Recreated");
+    expect(activePrompt?.deletedAt).toBeNull();
+  });
+
+  it("should reject sync payload exceeding maximum created batch limit", async () => {
+    const token = await getAuthToken();
+    const oversizedCreated = Array.from({ length: 251 }, (_, i) => ({
+      title: `Prompt ${i}`,
+      body: `Content ${i}`,
+    }));
+
+    const res = await request(app)
+      .post("/api/prompts/sync")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        created: oversizedCreated,
+      });
+
+    expect(res.status).toBe(400);
+  });
 });

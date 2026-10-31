@@ -78,7 +78,19 @@ export const syncPromptItemSchema = z.object({
 
 export const syncPromptsSchema = z.object({
   lastSyncTimestamp: z.string().datetime().nullable().optional(),
-  created: z.array(syncPromptItemSchema).optional().default([]),
-  updated: z.array(syncPromptItemSchema).optional().default([]),
-  deletedIds: z.array(promptIdSchema).optional().default([]),
+  created: z
+    .array(syncPromptItemSchema)
+    .max(250, "Batch cannot exceed 250 created items")
+    .optional()
+    .default([]),
+  updated: z
+    .array(syncPromptItemSchema)
+    .max(250, "Batch cannot exceed 250 updated items")
+    .optional()
+    .default([]),
+  deletedIds: z
+    .array(promptIdSchema)
+    .max(500, "Batch cannot exceed 500 deleted IDs")
+    .optional()
+    .default([]),
 });

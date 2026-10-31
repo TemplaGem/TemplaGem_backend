@@ -54,6 +54,7 @@ promptSchema.index(
     unique: true,
     partialFilterExpression: {
       clientTempId: { $type: "string", $gt: "" },
+      deletedAt: null,
     },
   },
 );

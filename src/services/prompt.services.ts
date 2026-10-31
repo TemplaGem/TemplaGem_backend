@@ -31,6 +31,7 @@ export class PromptService {
       throw new Error("User ID, title and body are required.");
     }
 
+    const now = new Date();
     const prompt = await promptModel.create({
       createdBy: userId,
       title,
@@ -39,7 +40,8 @@ export class PromptService {
       icon: icon ?? "",
       access: access ?? "private",
       deletedAt: null,
-      serverUpdatedAt: new Date(),
+      clientUpdatedAt: now,
+      serverUpdatedAt: now,
     });
 
     await userModel.findByIdAndUpdate(userId, {
@@ -57,9 +59,10 @@ export class PromptService {
       throw new Error("Prompt ID, user ID and title are required.");
     }
 
+    const now = new Date();
     const prompt = await promptModel.findOneAndUpdate(
       { _id: promptId, createdBy: userId, deletedAt: null },
-      { title, serverUpdatedAt: new Date() },
+      { title, serverUpdatedAt: now, clientUpdatedAt: now },
       { new: true },
     );
 
@@ -73,12 +76,13 @@ export class PromptService {
   ): Promise<void> {
     const { userId, promptId, body } = updatePromptBodyData;
     if (!userId || !promptId || !body) {
-      throw new Error("User ID, prompt ID and body are required.");
+      throw new Error("Prompt ID, user ID and body are required.");
     }
 
+    const now = new Date();
     const prompt = await promptModel.findOneAndUpdate(
       { _id: promptId, createdBy: userId, deletedAt: null },
-      { body, serverUpdatedAt: new Date() },
+      { body, serverUpdatedAt: now, clientUpdatedAt: now },
       { new: true },
     );
 
@@ -95,9 +99,10 @@ export class PromptService {
       throw new Error("Prompt ID, user ID and tags are required.");
     }
 
+    const now = new Date();
     const prompt = await promptModel.findOneAndUpdate(
       { _id: promptId, createdBy: userId, deletedAt: null },
-      { tags, serverUpdatedAt: new Date() },
+      { tags, serverUpdatedAt: now, clientUpdatedAt: now },
       { new: true },
     );
 
@@ -114,9 +119,10 @@ export class PromptService {
       throw new Error("Prompt ID, user ID and icon are required.");
     }
 
+    const now = new Date();
     const prompt = await promptModel.findOneAndUpdate(
       { _id: promptId, createdBy: userId, deletedAt: null },
-      { icon, serverUpdatedAt: new Date() },
+      { icon, serverUpdatedAt: now, clientUpdatedAt: now },
       { new: true },
     );
 
@@ -133,9 +139,10 @@ export class PromptService {
       throw new Error("Prompt ID, user ID and access are required.");
     }
 
+    const now = new Date();
     const prompt = await promptModel.findOneAndUpdate(
       { _id: promptId, createdBy: userId, deletedAt: null },
-      { access, serverUpdatedAt: new Date() },
+      { access, serverUpdatedAt: now, clientUpdatedAt: now },
       { new: true },
     );
 
@@ -150,13 +157,14 @@ export class PromptService {
       throw new Error("User ID and prompt ID are required.");
     }
 
+    const now = new Date();
     const prompt = await promptModel.findOneAndUpdate(
       {
         _id: promptId,
         createdBy: userId,
         deletedAt: null,
       },
-      { deletedAt: new Date(), serverUpdatedAt: new Date() },
+      { deletedAt: now, serverUpdatedAt: now, clientUpdatedAt: now },
       { new: true },
     );
 
@@ -177,7 +185,7 @@ export class PromptService {
     const now = new Date();
     await promptModel.updateMany(
       { createdBy: userId, deletedAt: null },
-      { $set: { deletedAt: now, serverUpdatedAt: now } },
+      { $set: { deletedAt: now, serverUpdatedAt: now, clientUpdatedAt: now } },
     );
 
     await userModel.findByIdAndUpdate(userId, {
@@ -198,8 +206,8 @@ export class PromptService {
     const appliedDeleted: string[] = [];
     const newlyCreatedIds: string[] = [];
 
-    // Stable read boundary for cursor generation
-    const readBoundaryTimestamp = new Date();
+    // Unified batch timestamp for all writes performed in this sync invocation
+    const batchNow = new Date();
 
     // 1. Process Created (Idempotent creation via clientTempId)
     if (payload.created && payload.created.length > 0) {
@@ -210,13 +218,13 @@ export class PromptService {
         const clientUpdatedAt = item.updatedAt
           ? new Date(item.updatedAt)
           : clientCreatedAt;
-        const now = new Date();
 
         if (item.clientTempId && item.clientTempId.trim() !== "") {
           // Check if already created by this clientTempId (idempotent retry)
           const existing = await promptModel.findOne({
             createdBy: userId,
             clientTempId: item.clientTempId,
+            deletedAt: null,
           });
 
           if (existing) {
@@ -232,32 +240,64 @@ export class PromptService {
           }
         }
 
-        const prompt = await promptModel.create({
-          createdBy: userId,
-          clientTempId: item.clientTempId || "",
-          title: item.title,
-          body: item.body,
-          tags: item.tags ?? [],
-          icon: item.icon ?? "",
-          access: item.access ?? "private",
-          deletedAt: null,
-          clientUpdatedAt,
-          serverUpdatedAt: now,
-          createdAt: clientCreatedAt,
-          updatedAt: clientUpdatedAt,
-        });
+        try {
+          const prompt = await promptModel.create({
+            createdBy: userId,
+            clientTempId: item.clientTempId || "",
+            title: item.title,
+            body: item.body,
+            tags: item.tags ?? [],
+            icon: item.icon ?? "",
+            access: item.access ?? "private",
+            deletedAt: null,
+            clientUpdatedAt,
+            serverUpdatedAt: batchNow,
+            createdAt: clientCreatedAt,
+            updatedAt: clientUpdatedAt,
+          });
 
+          const serverId = prompt._id.toString();
+          newlyCreatedIds.push(serverId);
+          appliedCreated.push({
+            clientTempId: item.clientTempId,
+            serverId,
+            createdAt: prompt.createdAt,
+            updatedAt: prompt.updatedAt,
+          });
+        } catch (error: unknown) {
+          // Handle potential concurrency race on clientTempId unique index (E11000)
+          if (
+            typeof error === "object" &&
+            error !== null &&
+            "code" in error &&
+            (error as { code?: number }).code === 11000 &&
+            item.clientTempId
+          ) {
+            const existing = await promptModel.findOne({
+              createdBy: userId,
+              clientTempId: item.clientTempId,
+              deletedAt: null,
+            });
+
+            if (existing) {
+              const serverId = existing._id.toString();
+              newlyCreatedIds.push(serverId);
+              appliedCreated.push({
+                clientTempId: item.clientTempId,
+                serverId,
+                createdAt: existing.createdAt,
+                updatedAt: existing.updatedAt,
+              });
+              continue;
+            }
+          }
+          throw error;
+        }
+      }
+
+      if (newlyCreatedIds.length > 0) {
         await userModel.findByIdAndUpdate(userId, {
-          $push: { prompts: prompt._id },
-        });
-
-        const serverId = prompt._id.toString();
-        newlyCreatedIds.push(serverId);
-        appliedCreated.push({
-          clientTempId: item.clientTempId,
-          serverId,
-          createdAt: prompt.createdAt,
-          updatedAt: prompt.updatedAt,
+          $push: { prompts: { $each: newlyCreatedIds } },
         });
       }
     }
@@ -269,13 +309,12 @@ export class PromptService {
         const clientUpdatedAt = item.updatedAt
           ? new Date(item.updatedAt)
           : new Date();
-        const now = new Date();
 
         const updateFields: Record<string, unknown> = {
           title: item.title,
           body: item.body,
           clientUpdatedAt,
-          serverUpdatedAt: now,
+          serverUpdatedAt: batchNow,
           updatedAt: clientUpdatedAt,
         };
         if (item.tags !== undefined) updateFields.tags = item.tags;
@@ -289,12 +328,17 @@ export class PromptService {
             createdBy: userId,
             deletedAt: null,
             $or: [
-              { clientUpdatedAt: null },
-              { clientUpdatedAt: { $exists: false } },
               { clientUpdatedAt: { $lte: clientUpdatedAt } },
               {
-                clientUpdatedAt: null,
-                updatedAt: { $lte: clientUpdatedAt },
+                $and: [
+                  {
+                    $or: [
+                      { clientUpdatedAt: null },
+                      { clientUpdatedAt: { $exists: false } },
+                    ],
+                  },
+                  { updatedAt: { $lte: clientUpdatedAt } },
+                ],
               },
             ],
           },
@@ -310,23 +354,30 @@ export class PromptService {
 
     // 3. Process Deleted
     if (payload.deletedIds && payload.deletedIds.length > 0) {
-      const now = new Date();
       for (const promptId of payload.deletedIds) {
         const prompt = await promptModel.findOneAndUpdate(
           { _id: promptId, createdBy: userId, deletedAt: null },
-          { deletedAt: now, serverUpdatedAt: now },
+          {
+            deletedAt: batchNow,
+            serverUpdatedAt: batchNow,
+            clientUpdatedAt: batchNow,
+          },
           { new: true },
         );
         if (prompt) {
-          await userModel.findByIdAndUpdate(userId, {
-            $pull: { prompts: promptId },
-          });
           appliedDeleted.push(promptId);
         }
+      }
+
+      if (appliedDeleted.length > 0) {
+        await userModel.findByIdAndUpdate(userId, {
+          $pull: { prompts: { $in: appliedDeleted } },
+        });
       }
     }
 
     // 4. Server Changes (delta based on serverUpdatedAt up to readBoundaryTimestamp)
+    const readBoundaryTimestamp = new Date();
     let serverPrompts: IPrompt[];
     let serverDeletedIds: string[] = [];
 
@@ -352,10 +403,14 @@ export class PromptService {
       serverDeletedIds = deletedPrompts.map((p) => p._id.toString());
     } else {
       // Initial sync: return all active prompts on the server up to readBoundaryTimestamp
+      // Handles pre-existing prompts where serverUpdatedAt has not been set yet
       const allActive = await promptModel.find({
         createdBy: userId,
         _id: { $nin: newlyCreatedIds },
-        serverUpdatedAt: { $lte: readBoundaryTimestamp },
+        $or: [
+          { serverUpdatedAt: { $lte: readBoundaryTimestamp } },
+          { serverUpdatedAt: { $exists: false } },
+        ],
         deletedAt: null,
       });
       serverPrompts = allActive;
